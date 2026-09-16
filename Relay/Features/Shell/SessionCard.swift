@@ -14,20 +14,20 @@ struct SessionCard: View {
                     Text(session.kind.rawValue).fontWeight(.medium)
                     Spacer()
                     if isSelected {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.blue)
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
                     }
                 }
                 HStack(spacing: 6) {
-                    Circle().fill(isSelected ? Color.blue : Color.secondary.opacity(0.5)).frame(width: 5, height: 5)
+                    Circle().fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.5)).frame(width: 5, height: 5)
                     Text(isSelected ? "Selected · Preview" : "Preview").font(.caption).foregroundStyle(.secondary)
                 }
             }
             .padding(16).frame(minWidth: 184, alignment: .leading)
-            .background(isSelected ? Color.blue.opacity(0.09) : Color.primary.opacity(isHovered ? 0.06 : 0.025),
+            .background(isSelected ? Color.accentColor.opacity(0.09) : Color.primary.opacity(isHovered ? 0.06 : 0.025),
                         in: RoundedRectangle(cornerRadius: 14))
             .overlay {
                 RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(isSelected ? Color.blue.opacity(0.4) : Color.primary.opacity(0.08))
+                    .strokeBorder(isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.08))
             }
         }
         .buttonStyle(.plain).onHover { isHovered = $0 }

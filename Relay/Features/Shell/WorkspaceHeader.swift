@@ -9,10 +9,10 @@ struct WorkspaceHeader: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: isTemporary ? "terminal" : "folder.fill").font(.title2).foregroundStyle(.blue)
+            Image(systemName: isTemporary ? "terminal" : "folder.fill").font(.title2).foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
                 .frame(width: 48, height: 48)
-                .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+                .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 5) {
                 Text(name).font(.title).bold()
                     .lineLimit(1).truncationMode(.middle)

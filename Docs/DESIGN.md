@@ -29,23 +29,23 @@ The visual direction is inspired by modern macOS design language, including Liqu
 
 ### Core Visual Idea
 
-The Relay icon uses:
+The Relay icon uses two broad, rounded arrows surrounding a centered terminal prompt (`>_`). The cyan upper arrow turns right; the violet lower arrow turns left. A softly shaded, rounded square forms the background.
 
-- A terminal prompt symbol: `>_`
-- Two opposing directional arrows
-- Blue-to-purple accent colors
-- A flat, modern macOS-style presentation
+- Light variant: white/paper tile with an ink-colored prompt.
+- Dark variant: charcoal/ink tile with a white prompt.
+- The sidebar follows the system appearance; the macOS app icon uses the light variant.
+- The wordmark is bold **Relay**, paired with “Your terminal sessions, in motion.”
+- Brand themes: Focus / Context / Momentum.
 
-The arrows communicate movement between sessions and contexts.
-
-The terminal prompt makes the product category immediately recognizable.
+Vector drawing and all app-icon sizes are reproducible with `swift Scripts/GenerateBrandAssets.swift`. Artwork is stored in `Relay/Assets.xcassets/`.
 
 ## Brand Colors
 
-Primary accent direction:
-
-- Cyan / bright blue
-- Violet / purple
+- Cyan: `#0EA5FF` (primary accent)
+- Violet: `#8B5CF6` (secondary accent)
+- Ink: `#111827`
+- Mist: `#E5E7EB`
+- Paper: `#F8FAFC`
 
 Use the accent sparingly.
 

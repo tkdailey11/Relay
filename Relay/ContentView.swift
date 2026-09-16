@@ -37,7 +37,7 @@ struct ContentView: View {
             }
         }
         .navigationTitle("")
-        .frame(minWidth: 860, minHeight: 580).tint(.blue)
+        .frame(minWidth: 860, minHeight: 580).tint(.accentColor)
         .fileImporter(isPresented: $isChoosingWorkspace, allowedContentTypes: [.folder]) { result in
             handleWorkspaceImport(result)
         }

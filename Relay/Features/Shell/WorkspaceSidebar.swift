@@ -9,8 +9,9 @@ struct WorkspaceSidebar: View {
             HStack(spacing: 12) {
                 RelayMark()
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Relay").font(.title2.weight(.semibold))
-                    Text("Your sessions, in motion.").font(.caption).foregroundStyle(.secondary)
+                    Text("Relay").font(.title2).bold()
+                    Text("Your terminal sessions,\nin motion.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             .padding(20)

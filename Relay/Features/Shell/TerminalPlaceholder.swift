@@ -33,7 +33,7 @@ struct TerminalPlaceholder: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(colorScheme == .dark ? Color(red: 0.055, green: 0.065, blue: 0.085) : Color(nsColor: .textBackgroundColor))
+        .background(colorScheme == .dark ? Color(.relayInk) : Color(nsColor: .textBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay {
             RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.07))

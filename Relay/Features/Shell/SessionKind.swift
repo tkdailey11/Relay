@@ -13,8 +13,8 @@ enum SessionKind: String, CaseIterable, Identifiable, Codable {
     var color: Color {
         switch self {
         case .claude: .orange
-        case .copilot: .purple
-        case .shell: .blue
+        case .copilot: Color(.relayViolet)
+        case .shell: .accentColor
         }
     }
 }
