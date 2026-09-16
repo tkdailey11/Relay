@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct RelayApp: App {
+    @State private var store = WorkspaceStore()
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(store: store)
         }
+        .defaultSize(width: 1180, height: 780)
     }
 }
