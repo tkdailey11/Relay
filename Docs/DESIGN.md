@@ -178,6 +178,14 @@ The active card may use a subtle Relay-blue glow or stronger material treatment.
 
 Avoid overly bright borders.
 
+## Terminal Focus
+
+Terminal Focus hides the sidebar, workspace header, session cards, and footer, leaving the terminal and one compact title-bar row. The title bar replaces the cards with tabs scoped to the current workspace or Temporary Sessions destination.
+
+Tabs show the session-type icon and name in card order. Use a subtle selected background and an underline for multi-session selection, preserving a non-color selection cue. A single session reads like a title. Keep tabs on one horizontally scrolling line, and reveal the selected tab when switching by keyboard. Keep the New Session (+) menu and exit-focus control fixed outside the scrolling area. Each tab exposes Close Session through its context menu.
+
+Keep the existing UI-preview indicator until terminal integration. Do not animate terminal frame changes. When a real terminal is embedded, tab selection must return keyboard focus to it.
+
 ## Terminal Surface
 
 The terminal is the visual anchor of the app.

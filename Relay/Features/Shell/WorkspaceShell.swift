@@ -23,7 +23,9 @@ struct WorkspaceShell: View {
                     sessionCards
                 }
             }
-            TerminalPlaceholder(selectedSession: selectedSession, isExpanded: $isTerminalExpanded,
+            TerminalPlaceholder(selectedSession: selectedSession, sessions: sessions,
+                                selectSession: { selectedSessionID = $0.id }, closeSession: closeSession,
+                                isExpanded: $isTerminalExpanded,
                                 addSession: addSession)
             if !isTerminalExpanded {
                 HStack(spacing: 6) {

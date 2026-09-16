@@ -101,7 +101,7 @@ The terminal should remain visually simple and readable even when the surroundin
 3. View the sessions belonging to that workspace.
 4. Start a new Claude, Copilot, or Shell session from the workspace header.
 5. Relay starts the session in the selected workspace directory.
-6. Switch between sessions using the session cards.
+6. Switch between sessions using the session cards, or compact workspace-scoped tabs in Terminal Focus.
 7. Switch between workspaces without losing project context.
 
 ## Navigation Model

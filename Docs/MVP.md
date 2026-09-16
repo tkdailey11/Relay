@@ -166,7 +166,7 @@ Contains:
 
 ### Terminal Focus
 
-The default layout stacks a workspace header, a session card row, and a footer above the terminal, which leaves the terminal with roughly half of a minimum-height window. Terminal Focus gives the terminal the whole window on demand.
+The default layout stacks a workspace header, a session card row, and a footer above the terminal, which leaves the terminal with roughly half of a minimum-height window. Terminal Focus gives the terminal the window beneath a compact session title bar on demand.
 
 Behavior:
 
@@ -178,18 +178,21 @@ Behavior:
 Controls:
 
 - **⇧⌘↩ toggles focus in both directions**, listed in the View menu so the shortcut is discoverable.
-- A persistent expand/collapse button in the terminal’s own title bar. While focused this is the only chrome on screen, so the way back is always visible.
+- A persistent expand/collapse button in the terminal’s own title bar keeps the way back visible.
+- While focused, that same title bar contains compact tabs for the current workspace’s sessions (or the current Temporary Sessions collection), in session-card order. Each tab shows the session-type icon and name, with a restrained selected background and underline. A single session reads as a title without the underline.
+- Tabs stay in one horizontally scrolling row; selecting a session, including by keyboard shortcut, brings its tab into view. The New Session (+) menu and exit-focus button remain visible outside the scrolling area.
+- The New Session menu offers Claude, Copilot, and Shell in the current destination. Tabs offer Close Session in their context menus, using the same selection fallback as session cards.
 - **Esc must not exit focus.** Once libghostty is embedded, Esc belongs to the terminal; binding it here would break vim and other full-screen TUI applications.
 
 Constraints:
 
-- Session switching must work while focused, or focus becomes a dead end that contradicts the multi-session model. Bind ⌘1–⌘9 to the workspace’s sessions in menu-bar order.
+- Session switching must work while focused, by clicking tabs or using ⌘1–⌘9 for the first nine sessions in card/menu-bar order. Once TerminalKit is integrated, selecting a tab must return keyboard focus to its terminal; the current UI shell has no terminal input surface.
 - Do not animate the terminal’s frame through the transition. Animating it forces a grid reflow on every frame, which looks wrong and can corrupt full-screen TUI output. Change the layout in one step and let the terminal resize once.
 - Focus is transient UI state. Do not persist it in the workspace snapshot.
 
 ### Done When
 
-A user can give the terminal the entire window with ⇧⌘↩ or the title-bar button, switch sessions with ⌘1–⌘9 while focused, and return to the full layout without losing session selection or their previous sidebar visibility.
+A user can give the terminal the entire window with ⇧⌘↩ or the title-bar button, switch sessions with tabs or ⌘1–⌘9 while focused, create and close sessions from the compact bar, and return to the full layout without losing session selection or their previous sidebar visibility.
 
 ### Session Cards
 

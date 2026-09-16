@@ -2,6 +2,9 @@ import SwiftUI
 
 struct TerminalPlaceholder: View {
     let selectedSession: Session?
+    let sessions: [Session]
+    let selectSession: (Session) -> Void
+    let closeSession: (Session) -> Void
     @Binding var isExpanded: Bool
     let addSession: (SessionKind) -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -9,11 +12,29 @@ struct TerminalPlaceholder: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Label(selectedSession?.kind.rawValue ?? "Terminal",
-                      systemImage: selectedSession?.kind.symbol ?? "terminal")
-                Spacer()
+                if isExpanded && !sessions.isEmpty {
+                    FocusSessionTabs(sessions: sessions, selectedSessionID: selectedSession?.id,
+                                     selectSession: selectSession, closeSession: closeSession)
+                } else {
+                    Label(selectedSession?.kind.rawValue ?? "Terminal",
+                          systemImage: selectedSession?.kind.symbol ?? "terminal")
+                    Spacer()
+                }
+                if isExpanded {
+                    Menu("New Session", systemImage: "plus") {
+                        ForEach(SessionKind.allCases) { kind in
+                            Button("New \(kind.rawValue) Session", systemImage: kind.symbol) {
+                                addSession(kind)
+                            }
+                        }
+                    }
+                    .labelStyle(.iconOnly)
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("New session in the current destination")
+                }
                 Text("UI PREVIEW").font(.caption.monospaced())
-                // The only chrome left while expanded, so the way back stays on screen.
+                // Keep the way back visible even when the tabs overflow.
                 Button {
                     isExpanded.toggle()
                 } label: {
@@ -26,7 +47,9 @@ struct TerminalPlaceholder: View {
                 .accessibilityLabel(isExpanded ? "Collapse terminal" : "Expand terminal")
                 .help(isExpanded ? "Collapse terminal (⇧⌘↩)" : "Expand terminal (⇧⌘↩)")
             }
-            .font(.caption).foregroundStyle(.secondary).padding(16)
+            .font(.caption).foregroundStyle(.secondary)
+            .padding(.horizontal, isExpanded ? 12 : 16)
+            .padding(.vertical, isExpanded ? 6 : 16)
             Divider().opacity(0.5)
             Spacer()
             ContentUnavailableView {
