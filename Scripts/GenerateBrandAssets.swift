@@ -97,7 +97,7 @@ func render(size: Int, dark: Bool, to url: URL) throws {
 let root = URL(filePath: FileManager.default.currentDirectoryPath)
 let assets = root.appending(path: "Relay/Assets.xcassets")
 for size in [16, 32, 64, 128, 256, 512, 1024] {
-    try render(size: size, dark: false,
+    try render(size: size, dark: true,
                to: assets.appending(path: "AppIcon.appiconset/icon-\(size).png"))
 }
 for dark in [false, true] {

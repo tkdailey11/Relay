@@ -33,7 +33,7 @@ The Relay icon uses two broad, rounded arrows surrounding a centered terminal pr
 
 - Light variant: white/paper tile with an ink-colored prompt.
 - Dark variant: charcoal/ink tile with a white prompt.
-- The sidebar follows the system appearance; the macOS app icon uses the light variant.
+- The sidebar follows the system appearance; the macOS app icon uses the dark variant, matching Relay’s dark-first identity.
 - The wordmark is bold **Relay**, paired with “Your terminal sessions, in motion.”
 - Brand themes: Focus / Context / Momentum.
 
