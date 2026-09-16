@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TerminalPlaceholder: View {
     let selectedSession: Session?
+    @Binding var isExpanded: Bool
     let addSession: (SessionKind) -> Void
     @Environment(\.colorScheme) private var colorScheme
 
@@ -12,6 +13,18 @@ struct TerminalPlaceholder: View {
                       systemImage: selectedSession?.kind.symbol ?? "terminal")
                 Spacer()
                 Text("UI PREVIEW").font(.caption.monospaced())
+                // The only chrome left while expanded, so the way back stays on screen.
+                Button {
+                    isExpanded.toggle()
+                } label: {
+                    Image(systemName: isExpanded
+                          ? "arrow.down.right.and.arrow.up.left"
+                          : "arrow.up.left.and.arrow.down.right")
+                }
+                .buttonStyle(.plain)
+                .contentTransition(.symbolEffect(.replace))
+                .accessibilityLabel(isExpanded ? "Collapse terminal" : "Expand terminal")
+                .help(isExpanded ? "Collapse terminal (⇧⌘↩)" : "Expand terminal (⇧⌘↩)")
             }
             .font(.caption).foregroundStyle(.secondary).padding(16)
             Divider().opacity(0.5)
@@ -34,9 +47,11 @@ struct TerminalPlaceholder: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(colorScheme == .dark ? Color(.relayInk) : Color(nsColor: .textBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 0 : 16))
         .overlay {
-            RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.07))
+            if !isExpanded {
+                RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.07))
+            }
         }
     }
 }

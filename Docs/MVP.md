@@ -122,7 +122,7 @@ Add:
 - Active session state
 - Basic session status
 - Native context menus
-- Keyboard shortcuts
+- Keyboard shortcuts, including Terminal Focus and session switching
 - Command palette or quick switcher if time permits
 - Better empty states
 - App icon
@@ -163,6 +163,33 @@ Contains:
 - Optional Git branch metadata
 - Session cards
 - Terminal
+
+### Terminal Focus
+
+The default layout stacks a workspace header, a session card row, and a footer above the terminal, which leaves the terminal with roughly half of a minimum-height window. Terminal Focus gives the terminal the whole window on demand.
+
+Behavior:
+
+- Hide the workspace header, session card row, and footer; drop the surrounding padding and the terminal’s rounded corners and border.
+- Collapse the sidebar to `.detailOnly`, restoring the visibility the user had before focus rather than forcing `.all`.
+- Collapse the chrome in place. Do not overlay the terminal or move it into a separate window, so the terminal view is never torn down and re-created.
+- Leave focus automatically when the detail area no longer shows a workspace shell.
+
+Controls:
+
+- **⇧⌘↩ toggles focus in both directions**, listed in the View menu so the shortcut is discoverable.
+- A persistent expand/collapse button in the terminal’s own title bar. While focused this is the only chrome on screen, so the way back is always visible.
+- **Esc must not exit focus.** Once libghostty is embedded, Esc belongs to the terminal; binding it here would break vim and other full-screen TUI applications.
+
+Constraints:
+
+- Session switching must work while focused, or focus becomes a dead end that contradicts the multi-session model. Bind ⌘1–⌘9 to the workspace’s sessions in menu-bar order.
+- Do not animate the terminal’s frame through the transition. Animating it forces a grid reflow on every frame, which looks wrong and can corrupt full-screen TUI output. Change the layout in one step and let the terminal resize once.
+- Focus is transient UI state. Do not persist it in the workspace snapshot.
+
+### Done When
+
+A user can give the terminal the entire window with ⇧⌘↩ or the title-bar button, switch sessions with ⌘1–⌘9 while focused, and return to the full layout without losing session selection or their previous sidebar visibility.
 
 ### Session Cards
 

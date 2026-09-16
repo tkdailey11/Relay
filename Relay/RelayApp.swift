@@ -15,5 +15,6 @@ struct RelayApp: App {
             ContentView(store: store)
         }
         .defaultSize(width: 1180, height: 780)
+        .commands { RelayCommands() }
     }
 }

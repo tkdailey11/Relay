@@ -6,12 +6,15 @@ struct ContentView: View {
     private var workspaces: [Workspace] { store.state.workspaces }
     @State private var isChoosingWorkspace = false
     @State private var isShowingError = false
+    @State private var isTerminalExpanded = false
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
+    @State private var sidebarVisibilityBeforeFocus = NavigationSplitViewVisibility.all
     private var selectedIndex: Int? {
         workspaces.firstIndex { $0.id == store.state.selectedWorkspaceID }
     }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             WorkspaceSidebar(store: store, addWorkspace: showWorkspacePicker)
                 .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 320)
         } detail: {
@@ -19,12 +22,14 @@ struct ContentView: View {
                 WorkspaceShell(name: "Temporary Sessions", path: store.temporaryWorkingDirectory,
                                sessions: $store.temporarySessions,
                                selectedSessionID: $store.selectedTemporarySessionID,
-                               isTemporary: true, addSession: store.addTemporarySession)
+                               isTemporary: true, isTerminalExpanded: $isTerminalExpanded,
+                               addSession: store.addTemporarySession)
             } else if let index = selectedIndex {
                 let workspace = workspaces[index]
                 WorkspaceShell(name: workspace.name, path: workspace.path,
                                sessions: $store.state.workspaces[index].sessions,
                                selectedSessionID: $store.state.workspaces[index].selectedSessionID,
+                               isTerminalExpanded: $isTerminalExpanded,
                                addSession: { store.addSession($0, to: workspace.id) })
             } else {
                 ContentUnavailableView {
@@ -38,6 +43,22 @@ struct ContentView: View {
         }
         .navigationTitle("")
         .frame(minWidth: 860, minHeight: 580).tint(.accentColor)
+        .focusedSceneValue(\.terminalFocus, isShowingShell
+                           ? TerminalFocusAction(isExpanded: isTerminalExpanded, toggle: toggleTerminalFocus)
+                           : nil)
+        .onChange(of: isShowingShell) { _, isShowing in
+            if !isShowing { isTerminalExpanded = false }
+        }
+        // Keyed off the state itself so the menu command and the terminal's own button
+        // move the sidebar identically.
+        .onChange(of: isTerminalExpanded) { _, isExpanded in
+            if isExpanded {
+                sidebarVisibilityBeforeFocus = columnVisibility
+                columnVisibility = .detailOnly
+            } else {
+                columnVisibility = sidebarVisibilityBeforeFocus
+            }
+        }
         .fileImporter(isPresented: $isChoosingWorkspace, allowedContentTypes: [.folder]) { result in
             handleWorkspaceImport(result)
         }
@@ -51,8 +72,18 @@ struct ContentView: View {
         }
     }
 
+    private var isShowingShell: Bool {
+        store.destination == .temporary || selectedIndex != nil
+    }
+
     private func showWorkspacePicker() {
         isChoosingWorkspace = true
+    }
+
+    // Deliberately unanimated: the terminal should resize once rather than reflow its
+    // grid on every frame of a transition.
+    private func toggleTerminalFocus() {
+        isTerminalExpanded.toggle()
     }
 
     private func handleWorkspaceImport(_ result: Result<URL, Error>) {
