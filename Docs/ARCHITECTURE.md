@@ -204,11 +204,11 @@ Responsibilities:
 - Create session
 - Close session
 - Track active session
-- Associate sessions with workspace
+- Associate sessions with a workspace or the temporary-session collection
 - Expose session state to SwiftUI
 - Restore metadata later if persistence is added
 
-The initial release does not need process persistence across full application termination.
+Persist workspace session metadata and selections locally. Keep temporary sessions and their selection outside the persisted snapshot; their working directory is the user’s home directory. They survive navigation during the app lifetime but disappear on quit. The initial release does not need process persistence across full application termination.
 
 ## Git Integration
 
@@ -229,9 +229,11 @@ Prefer invoking Git or a small Git abstraction rather than implementing Git beha
 
 Relay should have a clear selected-state model:
 
-- Selected workspace
+- Selected destination (workspace or Temporary Sessions)
+- Last selected workspace, retained when visiting Temporary Sessions
 - Selected session
 - Open sessions grouped by workspace
+- An in-memory temporary-session collection and independent selected temporary session
 
 Example conceptual hierarchy:
 

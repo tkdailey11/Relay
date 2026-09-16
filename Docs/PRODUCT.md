@@ -58,7 +58,7 @@ Git-related information should appear automatically when available, but Git must
 
 ### Session
 
-A session is a running terminal context inside a workspace.
+A session is a terminal context inside a workspace, or a temporary context outside any workspace. Temporary sessions use the user’s home directory and last only for the current app lifetime.
 
 Supported initial session types:
 
@@ -99,18 +99,18 @@ The terminal should remain visually simple and readable even when the surroundin
 1. Launch Relay.
 2. Select a workspace from the sidebar.
 3. View the sessions belonging to that workspace.
-4. Start a new Claude, Copilot, or Shell session.
+4. Start a new Claude, Copilot, or Shell session from the workspace header.
 5. Relay starts the session in the selected workspace directory.
 6. Switch between sessions using the session cards.
 7. Switch between workspaces without losing project context.
 
 ## Navigation Model
 
-The left sidebar should show **workspaces only**.
+The left sidebar shows **workspaces and a Temporary Sessions destination**.
 
-It should not show a global session list.
+It should not show individual sessions or a global session list.
 
-The selected workspace controls the main content area.
+The selected workspace or Temporary Sessions destination controls the main content area.
 
 Recommended structure:
 
@@ -127,14 +127,16 @@ Side Projects
 
 + Add Workspace
 
+Temporary Sessions
+
 --------------------
 
-START A SESSION
+TEMPORARY SESSION
 
 Claude    Copilot    Shell
 ```
 
-Sessions belonging to the selected workspace appear in the main content area, not in the sidebar.
+Sessions belonging to the selected destination appear in the main content area, not in the sidebar. Workspace headers provide a New Session menu. The bottom-left launchers always create temporary sessions and navigate to Temporary Sessions, without changing the last selected workspace. Temporary sessions survive navigation but are not restored after quitting.
 
 ## Product Principles
 

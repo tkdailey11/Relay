@@ -1,29 +1,71 @@
+import Darwin
 import Foundation
 import Observation
-
-struct WorkspaceSnapshot: Codable, Equatable {
-    var version = 1
-    var workspaces: [Workspace] = []
-    var selectedWorkspaceID: UUID?
-
-    mutating func normalizeSelections() {
-        if !workspaces.contains(where: { $0.id == selectedWorkspaceID }) {
-            selectedWorkspaceID = workspaces.first?.id
-        }
-        for index in workspaces.indices {
-            if !workspaces[index].sessions.contains(where: { $0.id == workspaces[index].selectedSessionID }) {
-                workspaces[index].selectedSessionID = workspaces[index].sessions.first?.id
-            }
-        }
-    }
-}
 
 @MainActor
 @Observable
 final class WorkspaceStore {
     var state: WorkspaceSnapshot {
-        didSet { save() }
+        didSet { if state != oldValue { save() } }
     }
+    // Deliberately excluded from WorkspaceSnapshot and its on-disk representation.
+    // NSHomeDirectory points at the app container when sandboxed.
+    var temporaryWorkingDirectory: String {
+        guard let directory = getpwuid(getuid())?.pointee.pw_dir else { return NSHomeDirectory() }
+        return String(cString: directory)
+    }
+    var temporarySessions: [Session] = []
+    var selectedTemporarySessionID: UUID?
+    var showsTemporarySessions = false
+    var destination: SessionDestination? {
+        get {
+            if showsTemporarySessions || state.selectedWorkspaceID == nil { return .temporary }
+            return state.selectedWorkspaceID.map(SessionDestination.workspace)
+        }
+        set {
+            switch newValue {
+            case .workspace(let id):
+                guard state.workspaces.contains(where: { $0.id == id }) else { return }
+                showsTemporarySessions = false
+                state.selectedWorkspaceID = id
+            case .temporary:
+                showsTemporarySessions = true
+            case nil:
+                break
+            }
+        }
+    }
+
+    func addTemporarySession(_ kind: SessionKind) {
+        let session = Session(kind: kind)
+        temporarySessions.append(session)
+        selectedTemporarySessionID = session.id
+        showsTemporarySessions = true
+    }
+
+    func addWorkspace(at url: URL) {
+        let directory = url.standardizedFileURL
+        if let existing = state.workspaces.first(where: { $0.path == directory.path }) {
+            destination = .workspace(existing.id)
+            return
+        }
+        let workspace = Workspace(name: directory.lastPathComponent, path: directory.path)
+        var updated = state
+        updated.workspaces.append(workspace)
+        updated.selectedWorkspaceID = workspace.id
+        state = updated
+        showsTemporarySessions = false
+    }
+
+    func addSession(_ kind: SessionKind, to workspaceID: UUID) {
+        guard let index = state.workspaces.firstIndex(where: { $0.id == workspaceID }) else { return }
+        let session = Session(kind: kind)
+        var updated = state
+        updated.workspaces[index].sessions.append(session)
+        updated.workspaces[index].selectedSessionID = session.id
+        state = updated
+    }
+
     var errorMessage: String?
     private let fileURL: URL?
     private var canSave = true

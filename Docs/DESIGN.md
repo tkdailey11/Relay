@@ -90,14 +90,15 @@ Conceptual layout:
 
 ## Sidebar
 
-The sidebar contains workspaces only.
+The sidebar contains workspaces and one Temporary Sessions destination; it does not list individual sessions.
 
 Recommended content:
 
 - Relay branding near the top
 - Workspace section
 - Add Workspace action
-- Session launchers fixed near the bottom
+- Temporary Sessions destination
+- Temporary session launchers fixed near the bottom
 
 The sidebar should use translucent or Liquid Glass materials.
 
@@ -109,6 +110,7 @@ A workspace row may contain:
 
 - Folder/project icon
 - Workspace name
+- New Session menu for Claude, Copilot, and Shell in that workspace
 - Path
 - Optional subtle status
 
@@ -116,7 +118,7 @@ Do not show nested sessions in the sidebar.
 
 ## Start Session Area
 
-The bottom of the sidebar should provide fast launch controls for:
+The bottom of the sidebar should label its launch controls **Temporary Session** and provide:
 
 - Claude
 - Copilot
@@ -124,7 +126,7 @@ The bottom of the sidebar should provide fast launch controls for:
 
 These should be visually distinct but compact.
 
-When a workspace is selected, clicking one of these should immediately launch that session in the selected workspace unless additional configuration is genuinely required.
+Clicking one always creates a temporary session in the user’s home directory and selects Temporary Sessions. These sessions remain available while navigating, but are cleared on quit. The destination uses the same card and terminal layout, with an explicit temporary-lifetime label.
 
 ## Workspace Header
 
@@ -132,6 +134,7 @@ The top of the main area may show:
 
 - Workspace icon
 - Workspace name
+- New Session menu for Claude, Copilot, and Shell in that workspace
 - Path
 - Git branch, if available
 - Git status, if useful

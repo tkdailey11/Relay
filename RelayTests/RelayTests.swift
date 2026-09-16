@@ -64,6 +64,76 @@ struct RelayTests {
         #expect(try Data(contentsOf: url) == data)
     }
 
+    @Test func temporarySessionsStaySeparateAndDoNotRestore() throws {
+        let url = storageURL()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = WorkspaceStore(fileURL: url)
+        #expect(store.destination == .temporary)
+        store.addTemporarySession(.shell)
+        #expect(store.temporarySessions.count == 1)
+        #expect(FileManager.default.fileExists(atPath: url.path) == false)
+
+        let workspaceSession = Session(kind: .claude)
+        let workspace = Workspace(name: "Project", path: "/tmp/project", sessions: [workspaceSession],
+                                  selectedSessionID: workspaceSession.id)
+        store.state = WorkspaceSnapshot(workspaces: [workspace], selectedWorkspaceID: workspace.id)
+        store.destination = .workspace(workspace.id)
+        let persistedData = try Data(contentsOf: url)
+        store.addTemporarySession(.copilot)
+        let temporarySelection = store.selectedTemporarySessionID
+        #expect(store.destination == .temporary)
+        #expect(store.state.workspaces[0].sessions == [workspaceSession])
+        #expect(try Data(contentsOf: url) == persistedData)
+        store.destination = .workspace(workspace.id)
+        #expect(store.temporarySessions.count == 2)
+        store.destination = .temporary
+        #expect(store.selectedTemporarySessionID == temporarySelection)
+        store.temporarySessions.removeAll { $0.id == temporarySelection }
+        store.selectedTemporarySessionID = store.temporarySessions.first?.id
+        #expect(store.state.workspaces[0].selectedSessionID == workspaceSession.id)
+
+        let reopened = WorkspaceStore(fileURL: url)
+        #expect(reopened.temporarySessions.isEmpty)
+        #expect(reopened.selectedTemporarySessionID == nil)
+        #expect(reopened.destination == .workspace(workspace.id))
+        #expect(reopened.state.workspaces == [workspace])
+    }
+
+    @Test func addingWorkspaceNormalizesPathsAndReusesExistingWorkspace() throws {
+        let store = WorkspaceStore(fileURL: nil)
+        store.addWorkspace(at: URL(filePath: "/tmp/relay-project"))
+        let workspace = try #require(store.state.workspaces.first)
+        store.addTemporarySession(.shell)
+        store.addWorkspace(at: URL(filePath: "/tmp/relay-project/../relay-project"))
+        #expect(store.state.workspaces.count == 1)
+        #expect(store.destination == .workspace(workspace.id))
+        #expect(store.temporarySessions.count == 1)
+    }
+
+    @Test(arguments: SessionKind.allCases)
+    func addsSessionOnlyToRequestedWorkspace(kind: SessionKind) throws {
+        let url = storageURL()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = WorkspaceStore(fileURL: url)
+        store.addWorkspace(at: URL(filePath: "/tmp/first"))
+        let first = try #require(store.state.workspaces.first)
+        store.addWorkspace(at: URL(filePath: "/tmp/second"))
+        let second = try #require(store.state.workspaces.last)
+        store.addSession(kind, to: first.id)
+        let restored = WorkspaceStore(fileURL: url)
+        let workspace = try #require(restored.state.workspaces.first)
+        let session = try #require(workspace.sessions.first)
+        #expect(session.kind == kind)
+        #expect(workspace.selectedSessionID == session.id)
+        #expect(restored.state.workspaces.last?.sessions.isEmpty == true)
+        #expect(restored.destination == .workspace(second.id))
+
+        let snapshot = store.state
+        store.addSession(kind, to: UUID())
+        store.destination = .workspace(UUID())
+        #expect(store.state == snapshot)
+    }
+
     @Test func reportsWriteFailures() throws {
         let url = storageURL()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }

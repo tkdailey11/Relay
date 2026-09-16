@@ -21,7 +21,9 @@ Relay 0.1 is successful if a user can:
 7. Switch between sessions.
 8. Switch between workspaces.
 9. Quit and reopen Relay without losing workspace definitions.
-10. Feel that the app already behaves like a polished native Mac application.
+10. Create temporary Shell, Claude, or Copilot sessions without selecting a workspace.
+11. Switch between temporary sessions and workspaces without losing sessions during the app lifetime.
+12. Feel that the app already behaves like a polished native Mac application.
 
 ## Milestone 1 — Application Shell
 
@@ -31,6 +33,7 @@ Build:
 - Main window
 - Sidebar
 - Workspace placeholder list
+- Temporary Sessions navigation destination
 - Main content placeholder
 - Dark/light mode support
 - Relay branding assets
@@ -83,6 +86,8 @@ Build:
 - Active session switching
 - Close session
 - New Shell session
+- A New Session menu in each workspace header for Claude, Copilot, and Shell
+- Temporary sessions outside workspaces, available through a dedicated sidebar destination
 
 ### Done When
 
@@ -96,13 +101,17 @@ Build session launchers for:
 - Copilot
 - Shell
 
-The selected workspace should automatically supply the working directory.
+Workspace header launchers use that workspace’s directory and create persisted session metadata in that workspace.
+
+The bottom-left Claude, Copilot, and Shell controls always create a **temporary session**, even when a workspace is selected. They require no workspace and use the user’s home directory. Creating one selects the Temporary Sessions destination. This destination uses the same session cards and terminal layout, including a New Session menu and close-session controls.
+
+Temporary sessions remain available when switching destinations during the current app lifetime. Their metadata, selection, and running processes are not restored after quitting. They never appear in a workspace’s session list or persisted workspace data. In the UI-shell milestone, both types remain previews and launch no processes.
 
 If the required executable is missing, show a helpful native error instead of failing silently.
 
 ### Done When
 
-The three session controls at the bottom of the sidebar work.
+Both the workspace header launchers and the three temporary-session controls at the bottom of the sidebar work.
 
 ## Milestone 6 — Polish
 
@@ -130,14 +139,13 @@ Contains:
 
 - Relay branding
 - Workspaces
+- Temporary Sessions destination (not individual session rows)
 - Add Workspace
-- Claude launcher
-- Copilot launcher
-- Shell launcher
+- Temporary Session area with Claude, Copilot, and Shell launchers
 
 Does not contain:
 
-- Sessions
+- Individual sessions
 - Agents
 - Snippets
 - Git sections
@@ -151,6 +159,7 @@ Contains:
 
 - Workspace title
 - Workspace path
+- New Session menu for Claude, Copilot, and Shell
 - Optional Git branch metadata
 - Session cards
 - Terminal
@@ -173,7 +182,9 @@ Persist:
 - Workspace list
 - Workspace order
 - Last selected workspace
-- Optional session metadata if trivial
+- Workspace session metadata and per-workspace selected session
+
+Do not persist temporary sessions or their selection. Reopen the last selected workspace when available; otherwise show an empty Temporary Sessions destination.
 
 Do not require persistent running processes across app termination.
 
