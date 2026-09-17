@@ -6,6 +6,7 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
     weak var session: TerminalSession?
     private(set) var surface: ghostty_surface_t?
     private let workingDirectory: URL
+    private let command: String?
     private var didAttemptStart = false
     private var isClosed = false
     private var tracking: NSTrackingArea?
@@ -15,8 +16,9 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
     private var textAccumulator: [String]?
     private var wantsFocus = false
 
-    init(workingDirectory: URL) {
+    init(workingDirectory: URL, command: String? = nil) {
         self.workingDirectory = workingDirectory
+        self.command = command
         super.init(frame: .zero)
         wantsLayer = true
         setAccessibilityElement(true)
@@ -58,10 +60,12 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
             config.userdata = Unmanaged.passUnretained(self).toOpaque()
             config.scale_factor = Double(window?.backingScaleFactor ?? 1)
             // A nil command lets libghostty launch the user's login shell (from passwd).
+            // ghostty_surface_config_s.command is deliberately left unset: libghostty 1.2.3
+            // ignores it, so the command is carried by the app configuration instead.
             config.wait_after_command = true
-            surface = workingDirectory.path.withCString {
-                config.working_directory = $0
-                return ghostty_surface_new(runtime.app, &config)
+            surface = workingDirectory.path.withCString { directory in
+                config.working_directory = directory
+                return runtime.withCommand(command) { ghostty_surface_new(runtime.app, &config) }
             }
             guard surface != nil else { throw TerminalError.initialization("libghostty could not create a shell surface.") }
             updateAppearance()

@@ -8,9 +8,11 @@ import Observation
 public final class TerminalSession {
     public private(set) var status: TerminalStatus = .starting
     public let workingDirectory: URL
+    /// nil launches the user's login shell.
+    public let command: String?
     @ObservationIgnored let terminalView: GhosttySurfaceView
 
-    public init(workingDirectory: URL) throws {
+    public init(workingDirectory: URL, command: String? = nil) throws {
         let directory = workingDirectory.standardizedFileURL
         var isDirectory: ObjCBool = false
         guard directory.isFileURL,
@@ -20,7 +22,8 @@ public final class TerminalSession {
             throw TerminalError.invalidDirectory(directory.path)
         }
         self.workingDirectory = directory
-        terminalView = GhosttySurfaceView(workingDirectory: directory)
+        self.command = command
+        terminalView = GhosttySurfaceView(workingDirectory: directory, command: command)
         terminalView.session = self
     }
 

@@ -15,20 +15,22 @@ struct TerminalContent: View {
                     case .failed(let message):
                         Text(message).padding().background(.regularMaterial)
                     case .exited:
-                        Text("Shell exited. Create a new Shell session to continue.")
+                        Text("\(selectedSession.kind.rawValue) exited. Create a new \(selectedSession.kind.rawValue) session to continue.")
                             .padding().background(.regularMaterial)
                     default:
                         EmptyView()
                     }
                 }
         } else if let selectedSession, let error = terminals.errors[selectedSession.id] {
-            ContentUnavailableView("Couldn’t Start Shell", systemImage: "exclamationmark.triangle",
+            ContentUnavailableView("Couldn’t Start \(selectedSession.kind.rawValue)",
+                                   systemImage: "exclamationmark.triangle",
                                    description: Text(error))
-        } else if let selectedSession, selectedSession.kind != .shell || !terminals.allowsLaunching {
+        } else if let selectedSession, !terminals.allowsLaunching {
             ContentUnavailableView("\(selectedSession.kind.rawValue) Preview", systemImage: selectedSession.kind.symbol,
-                                   description: Text("This launcher is not connected yet. Start a Shell session to use the terminal."))
-        } else if selectedSession != nil {
-            ProgressView("Starting shell…").frame(maxWidth: .infinity, maxHeight: .infinity)
+                                   description: Text("This preview launches no processes."))
+        } else if let selectedSession {
+            ProgressView("Starting \(selectedSession.kind.rawValue)…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ContentUnavailableView {
                 Label("A fresh space to work", systemImage: "terminal")

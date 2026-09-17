@@ -62,7 +62,7 @@ struct TerminalPane: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task(id: selectedSession?.id) {
-            if let selectedSession { terminals.prepare(selectedSession, directory: directory) }
+            if let selectedSession { await terminals.prepare(selectedSession, directory: directory) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(colorScheme == .dark ? Color(.relayInk) : Color(nsColor: .textBackgroundColor))

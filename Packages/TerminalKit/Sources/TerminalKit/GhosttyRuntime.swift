@@ -9,6 +9,11 @@ final class GhosttyRuntime {
     private let config: ghostty_config_t
     private var observers: [NSObjectProtocol] = []
     private var appearanceObservation: NSKeyValueObservation?
+    private let themes: (light: URL, dark: URL)
+    /// libghostty reads a surface's command from the app configuration it was created under, and
+    /// every config handed to ghostty_app_update_config has to outlive the surfaces that read it,
+    /// so each distinct command keeps its config for the life of the process.
+    private var commandConfigs: [String: ghostty_config_t] = [:]
 
     private init() throws {
         guard let resources = Bundle.module.url(forResource: "ghostty", withExtension: nil),
@@ -41,6 +46,7 @@ final class GhosttyRuntime {
             throw TerminalError.initialization(message)
         }
         self.config = config
+        self.themes = (light, dark)
         var callbacks = ghostty_runtime_config_s()
         callbacks.supports_selection_clipboard = false
         callbacks.wakeup_cb = { _ in
@@ -127,6 +133,45 @@ final class GhosttyRuntime {
         ghostty_app_set_color_scheme(app, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT)
     }
 
+    /// libghostty ignores the `command` field of ghostty_surface_config_s in 1.2.3, but honours
+    /// `command` from the configuration a surface is created under, so the app configuration is
+    /// swapped to one carrying this command for the duration of the call and restored after.
+    /// Only `command` differs between them, and it is read once at spawn, so surfaces already
+    /// running are unaffected by the swap.
+    func withCommand<T>(_ command: String?, _ body: () throws -> T) rethrows -> T {
+        guard let command, !command.isEmpty else { return try body() }
+        guard let scoped = try? configuration(for: command) else { return try body() }
+        ghostty_app_update_config(app, scoped)
+        defer { ghostty_app_update_config(app, config) }
+        return try body()
+    }
+
+    private func configuration(for command: String) throws -> ghostty_config_t {
+        if let existing = commandConfigs[command] { return existing }
+        guard let scoped = ghostty_config_new() else {
+            throw TerminalError.initialization("libghostty could not allocate its configuration.")
+        }
+        do {
+            try Self.loadSettings(into: scoped, light: themes.light, dark: themes.dark, command: command)
+        } catch {
+            ghostty_config_free(scoped)
+            throw error
+        }
+        ghostty_config_finalize(scoped)
+        commandConfigs[command] = scoped
+        return scoped
+    }
+
+    /// A filesystem-safe directory name per command. Swift's own hashValue is seeded per process,
+    /// which would leave a new directory behind on every launch, so this is an explicit FNV-1a.
+    private static func directoryName(for command: String) -> String {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in command.utf8 {
+            hash = (hash ^ UInt64(byte)) &* 0x100000001b3
+        }
+        return String(hash, radix: 16)
+    }
+
     /// libghostty takes settings from configuration files only. `ghostty_config_load_cli_args`
     /// parses Relay's real command line — the argv handed to `ghostty_init` is ignored — so every
     /// argument libghostty doesn't recognize, whether Xcode's, a UI test's or the user's, becomes a
@@ -135,8 +180,12 @@ final class GhosttyRuntime {
     /// out. `config-file` is applied after the default files, so these values are the last word;
     /// a user's ~/Library/Application Support/com.mitchellh.ghostty/config still supplies keys
     /// Relay leaves unset.
-    private static func loadSettings(into config: ghostty_config_t, light: URL, dark: URL) throws {
-        let root = URL.applicationSupportDirectory.appending(path: "Relay/Terminal")
+    private static func loadSettings(into config: ghostty_config_t, light: URL, dark: URL,
+                                     command: String? = nil) throws {
+        // Each command needs its own XDG_CONFIG_HOME because libghostty only ever reads
+        // `ghostty/config` beneath it.
+        let base = URL.applicationSupportDirectory.appending(path: "Relay/Terminal")
+        let root = command.map { base.appending(path: "commands/\(Self.directoryName(for: $0))") } ?? base
         let settings = root.appending(path: "relay.conf")
         do {
             try FileManager.default.createDirectory(at: root.appending(path: "ghostty"),
@@ -149,7 +198,7 @@ final class GhosttyRuntime {
                 window-padding-y = 8
                 clipboard-read = ask
                 clipboard-write = ask
-
+                \(command.map { "command = \($0)\n" } ?? "")
                 """.write(to: settings, atomically: true, encoding: .utf8)
             try "config-file = \(settings.path)\n"
                 .write(to: root.appending(path: "ghostty/config"), atomically: true, encoding: .utf8)
