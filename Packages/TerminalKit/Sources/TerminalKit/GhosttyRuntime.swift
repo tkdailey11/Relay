@@ -8,6 +8,7 @@ final class GhosttyRuntime {
     let app: ghostty_app_t
     private let config: ghostty_config_t
     private var observers: [NSObjectProtocol] = []
+    private var appearanceObservation: NSKeyValueObservation?
 
     private init() throws {
         guard let resources = Bundle.module.url(forResource: "ghostty", withExtension: nil),
@@ -105,6 +106,12 @@ final class GhosttyRuntime {
         }
         self.app = app
         ghostty_app_set_focus(app, NSApp.isActive)
+        // The app's scheme, not the surface's, is what resolves `theme = light:…,dark:…`.
+        // ghostty_surface_set_color_scheme only reports the scheme to the running program.
+        syncColorScheme()
+        appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.syncColorScheme() }
+        }
         for name in [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
@@ -113,6 +120,11 @@ final class GhosttyRuntime {
                 }
             })
         }
+    }
+
+    private func syncColorScheme() {
+        let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        ghostty_app_set_color_scheme(app, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT)
     }
 
     /// libghostty takes settings from configuration files only. `ghostty_config_load_cli_args`
