@@ -55,13 +55,16 @@ struct TerminalPane: View {
             .padding(.horizontal, isExpanded ? 12 : 16)
             .padding(.vertical, isExpanded ? 6 : 16)
             Divider().opacity(0.5)
+            // Expand explicitly: an empty-state ContentUnavailableView hugs its content,
+            // which would otherwise let the header drift to the middle of the pane.
             TerminalContent(terminals: terminals, selectedSession: selectedSession,
                             focusRequest: focusRequest, addSession: addSession)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task(id: selectedSession?.id) {
             if let selectedSession { terminals.prepare(selectedSession, directory: directory) }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(colorScheme == .dark ? Color(.relayInk) : Color(nsColor: .textBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 0 : 16))
         .overlay {
