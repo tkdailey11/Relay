@@ -19,14 +19,14 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 320)
         } detail: {
             if store.destination == .temporary {
-                WorkspaceShell(name: "Temporary Sessions", path: store.temporaryWorkingDirectory,
+                WorkspaceShell(terminals: store.terminals, name: "Temporary Sessions", path: store.temporaryWorkingDirectory,
                                sessions: $store.temporarySessions,
                                selectedSessionID: $store.selectedTemporarySessionID,
                                isTemporary: true, isTerminalExpanded: $isTerminalExpanded,
                                addSession: store.addTemporarySession)
             } else if let index = selectedIndex {
                 let workspace = workspaces[index]
-                WorkspaceShell(name: workspace.name, path: workspace.path,
+                WorkspaceShell(terminals: store.terminals, name: workspace.name, path: workspace.path,
                                sessions: $store.state.workspaces[index].sessions,
                                selectedSessionID: $store.state.workspaces[index].selectedSessionID,
                                isTerminalExpanded: $isTerminalExpanded,

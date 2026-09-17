@@ -6,7 +6,10 @@ import Observation
 @Observable
 final class WorkspaceStore {
     var state: WorkspaceSnapshot {
-        didSet { if state != oldValue { save() } }
+        didSet {
+            if state != oldValue { save() }
+            reconcileTerminals()
+        }
     }
     // Deliberately excluded from WorkspaceSnapshot and its on-disk representation.
     // NSHomeDirectory points at the app container when sandboxed.
@@ -14,7 +17,10 @@ final class WorkspaceStore {
         guard let directory = getpwuid(getuid())?.pointee.pw_dir else { return NSHomeDirectory() }
         return String(cString: directory)
     }
-    var temporarySessions: [Session] = []
+    let terminals: TerminalSessionManager
+    var temporarySessions: [Session] = [] {
+        didSet { reconcileTerminals() }
+    }
     var selectedTemporarySessionID: UUID?
     var showsTemporarySessions = false
     var destination: SessionDestination? {
@@ -70,17 +76,32 @@ final class WorkspaceStore {
     private let fileURL: URL?
     private var canSave = true
 
-    init(fileURL: URL? = URL.applicationSupportDirectory
-        .appending(path: "Relay/workspaces.json")) {
+    nonisolated static var defaultFileURL: URL {
+        URL.applicationSupportDirectory.appending(path: "Relay/workspaces.json")
+    }
+
+    private static var legacyFileURL: URL {
+        URL.homeDirectory.appending(path: "Library/Containers/com.tylerdailey.Relay/Data/Library/Application Support/Relay/workspaces.json")
+    }
+
+    init(fileURL: URL? = WorkspaceStore.defaultFileURL,
+         terminalsEnabled: Bool = true, migrationSource: URL? = nil) {
+        self.terminals = TerminalSessionManager(allowsLaunching: terminalsEnabled)
         self.fileURL = fileURL
         self.state = WorkspaceSnapshot()
         guard let fileURL else { return }
         do {
             let data: Data
+            var migrated = false
             do {
                 data = try Data(contentsOf: fileURL)
             } catch CocoaError.fileReadNoSuchFile {
-                return
+                // The UI shell was sandboxed. Preserve its workspaces when moving to a
+                // normal terminal app; leave the original snapshot untouched.
+                let source = migrationSource ?? (fileURL == Self.defaultFileURL ? Self.legacyFileURL : nil)
+                guard let source, FileManager.default.fileExists(atPath: source.path) else { return }
+                data = try Data(contentsOf: source)
+                migrated = true
             }
             var restored = try JSONDecoder().decode(WorkspaceSnapshot.self, from: data)
             guard restored.version == 1 else {
@@ -88,11 +109,17 @@ final class WorkspaceStore {
             }
             restored.normalizeSelections()
             state = restored
+            if migrated { save() }
         } catch {
             // Never overwrite an unreadable or newer-format store with an empty one.
             canSave = false
             errorMessage = "Relay couldn’t load your workspaces. The saved file has been preserved. Changes won’t be saved until the storage problem is resolved and Relay is reopened. \(error.localizedDescription)"
         }
+    }
+
+    private func reconcileTerminals() {
+        let ids = state.workspaces.flatMap(\.sessions).map(\.id) + temporarySessions.map(\.id)
+        terminals.retainSessions(Set(ids))
     }
 
     private func save() {
@@ -110,7 +137,7 @@ final class WorkspaceStore {
     }
 
     static func preview() -> WorkspaceStore {
-        let store = WorkspaceStore(fileURL: nil)
+        let store = WorkspaceStore(fileURL: nil, terminalsEnabled: false)
         store.state = WorkspaceSnapshot(workspaces: Workspace.samples,
                                         selectedWorkspaceID: Workspace.samples.first?.id)
         return store

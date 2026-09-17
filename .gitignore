@@ -1,0 +1,7 @@
+.DS_Store
+.build/
+DerivedData/
+Packages/TerminalKit/Vendor/
+Packages/TerminalKit/Sources/TerminalKit/Resources/ghostty/
+Packages/TerminalKit/Sources/TerminalKit/Resources/terminfo/
+xcuserdata/

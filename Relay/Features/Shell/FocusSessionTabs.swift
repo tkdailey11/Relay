@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FocusSessionTabs: View {
+    let status: (Session) -> String
     let sessions: [Session]
     let selectedSessionID: Session.ID?
     let selectSession: (Session) -> Void
@@ -32,7 +33,7 @@ struct FocusSessionTabs: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(session.kind.rawValue) session")
                         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-                        .accessibilityValue(isSelected ? "Selected, preview" : "Preview")
+                        .accessibilityValue(isSelected ? "Selected, \(status(session))" : status(session))
                         .contextMenu {
                             Button("Close Session", systemImage: "xmark", role: .destructive) {
                                 closeSession(session)

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SessionCard: View {
     let session: Session
+    let status: String
     let isSelected: Bool
     let select: () -> Void
     @State private var isHovered = false
@@ -19,7 +20,7 @@ struct SessionCard: View {
                 }
                 HStack(spacing: 6) {
                     Circle().fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.5)).frame(width: 5, height: 5)
-                    Text(isSelected ? "Selected · Preview" : "Preview").font(.caption).foregroundStyle(.secondary)
+                    Text(isSelected ? "Selected · \(status)" : status).font(.caption).foregroundStyle(.secondary)
                 }
             }
             .padding(16).frame(minWidth: 184, alignment: .leading)
@@ -35,6 +36,6 @@ struct SessionCard: View {
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .accessibilityInputLabels([Text("\(session.kind.rawValue) session")])
         .accessibilityLabel("\(session.kind.rawValue) session")
-        .accessibilityValue(isSelected ? "Selected, preview" : "Preview")
+        .accessibilityValue(isSelected ? "Selected, \(status)" : status)
     }
 }

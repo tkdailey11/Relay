@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* TerminalKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000002 /* TerminalKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		823C334C305A37E9007F3666 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000001 /* TerminalKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = Relay;
 			packageProductDependencies = (
+				A10000000000000000000002 /* TerminalKit */,
 			);
 			productName = Relay;
 			productReference = 823C333E305A37E7007F3666 /* Relay.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 823C3335305A37E7007F3666;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A10000000000000000000003 /* XCLocalSwiftPackageReference "Packages/TerminalKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 823C333F305A37E7007F3666 /* Products */;
 			projectDirPath = "";
@@ -398,7 +407,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Z36J5U5BMB;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -430,7 +439,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Z36J5U5BMB;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -573,6 +582,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A10000000000000000000003 /* XCLocalSwiftPackageReference "Packages/TerminalKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TerminalKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A10000000000000000000002 /* TerminalKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TerminalKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 823C3336305A37E7007F3666 /* Project object */;
 }
