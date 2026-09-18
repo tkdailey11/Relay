@@ -40,8 +40,10 @@ final class TerminalIntegrationTests: XCTestCase {
         app.typeKey("c", modifierFlags: .control)
         app.typeKey("c", modifierFlags: .control)
 
-        app.menuButtons["New Session"].click()
-        app.menuItems["New Shell Session"].click()
+        // Scoped to the pane's own menu: the File menu offers an item of the same name.
+        let newSession = app.menuButtons["New Session"]
+        newSession.click()
+        newSession.menuItems["New Shell Session"].click()
         XCTAssertTrue(terminal.waitForExistence(timeout: 5))
         app.typeText("printf 'second:%s\\n' \"shell\"\n")
         expectOutput("second:shell", in: terminal)

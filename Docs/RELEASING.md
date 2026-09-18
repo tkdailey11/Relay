@@ -109,6 +109,19 @@ with Settings and the change survives a relaunch.
 `defaults write com.tylerdailey.Relay "RelayCommand.Copilot" "gh copilot"`. It writes the same
 keys, so a tester whose CLI Relay cannot find can fix it themselves with a full path.
 
+## Terminal shortcuts
+
+`relay.conf` sets `keybind = clear`, so libghostty contributes no shortcuts of its own and the
+menu bar owns every Command key. The Terminal menu puts back the ones worth having: Clear Screen
+(⌘K), Search Scrollback (⌘F), jump to previous/next prompt (⌘↑/⌘↓), page up/down and scroll to
+top/bottom. ⌘N makes a new Shell session, since Relay is a single-window app and New Window has
+nothing to do.
+
+**Search Scrollback is not find-in-terminal.** libghostty 1.2.3 exposes no search, and no way to
+set a selection or scroll to a match, so Relay reads the scrollback text out and lists the lines
+that match. It cannot highlight a hit in place or scroll the terminal to it. Revisit this when
+libghostty gains a search API.
+
 ## Verifying a build before sending it out
 
 ```sh

@@ -6,6 +6,7 @@ struct WorkspaceShell: View {
     @State private var sessionPendingClose: Session?
     @State private var showsCloseConfirmation = false
     @State private var focusRequest = UUID()
+    @State private var scrollbackSearch: ScrollbackSearchItem?
     let name: String
     let path: String
     @Binding var sessions: [Session]
@@ -51,6 +52,16 @@ struct WorkspaceShell: View {
             Text("The process running in this terminal will be stopped.")
         }
         .onChange(of: isTerminalExpanded) { focusRequest = UUID() }
+        .sheet(item: $scrollbackSearch) { item in
+            ScrollbackSearchView(sessionName: item.sessionName, scrollback: item.scrollback)
+        }
+        .focusedSceneValue(\.newSession, NewSessionAction(destinationName: name, add: addSession))
+        // Nil until the selected session has a live terminal, which is what disables the
+        // Terminal menu rather than letting it act on nothing.
+        .focusedSceneValue(\.activeTerminal, activeTerminal)
+        .focusedSceneValue(\.scrollbackSearch, activeTerminal.map { _ in
+            ScrollbackSearchAction(show: showScrollbackSearch)
+        })
         .focusedSceneValue(\.sessionSwitch, SessionSwitchAction(
             titles: sessions.map(\.kind.rawValue),
             selectedIndex: sessions.firstIndex { $0.id == selectedSessionID },
@@ -75,6 +86,23 @@ struct WorkspaceShell: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .scrollIndicators(.hidden)
+    }
+
+    private var activeTerminal: ActiveTerminalAction? {
+        guard let selectedSession, let terminal = terminals.sessions[selectedSession.id] else { return nil }
+        return ActiveTerminalAction(
+            sessionName: selectedSession.kind.rawValue,
+            perform: { terminal.perform($0) },
+            scrollback: { terminal.scrollbackText }
+        )
+    }
+
+    /// Read once when the sheet opens: a live terminal keeps producing output, and a result
+    /// list that reshuffled underneath the user would be worse than a snapshot.
+    private func showScrollbackSearch() {
+        guard let activeTerminal else { return }
+        scrollbackSearch = ScrollbackSearchItem(sessionName: activeTerminal.sessionName,
+                                                scrollback: activeTerminal.scrollback())
     }
 
     private func selectSession(at index: Int) {

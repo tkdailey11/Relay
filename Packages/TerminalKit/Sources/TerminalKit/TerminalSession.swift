@@ -36,6 +36,28 @@ public final class TerminalSession {
         terminalView.window?.makeFirstResponder(terminalView)
     }
 
+    /// Returns false when libghostty declined the action, which is how a name that is no longer
+    /// valid in a newer Ghostty shows up rather than as a menu item that quietly does nothing.
+    @discardableResult
+    public func perform(_ action: TerminalAction) -> Bool {
+        let accepted = terminalView.perform(action)
+        if !accepted {
+            TerminalDiagnostics.error("libghostty rejected the binding action \(action.rawValue)")
+        }
+        return accepted
+    }
+
+    /// The whole screen, scrollback included. libghostty 1.2.3 exposes no search of its own and
+    /// no way to select or scroll to a match, so Relay reads the text out and searches it.
+    public var scrollbackText: String {
+        terminalView.readText(tag: .screen)
+    }
+
+    /// Empty when nothing is selected.
+    public var selectedText: String {
+        terminalView.readSelection()
+    }
+
     /// Closing is explicit; navigating away only detaches the view, leaving its process alive.
     public func close() {
         terminalView.close()

@@ -228,9 +228,48 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
     @objc func paste(_ sender: Any?) { binding("paste_from_clipboard") }
     @objc override func selectAll(_ sender: Any?) { binding("select_all") }
 
-    private func binding(_ name: String) {
-        guard let surface else { return }
-        name.withCString { _ = ghostty_surface_binding_action(surface, $0, UInt(name.utf8.count)) }
+    func perform(_ action: TerminalAction) -> Bool {
+        binding(action.rawValue)
+    }
+
+    @discardableResult
+    private func binding(_ name: String) -> Bool {
+        guard let surface else { return false }
+        return name.withCString { ghostty_surface_binding_action(surface, $0, UInt(name.utf8.count)) }
+    }
+
+    enum TextRegion {
+        case viewport, screen
+
+        var tag: ghostty_point_tag_e {
+            switch self {
+            case .viewport: GHOSTTY_POINT_VIEWPORT
+            case .screen: GHOSTTY_POINT_SCREEN
+            }
+        }
+    }
+
+    /// `.screen` spans the scrollback; `.viewport` is only what is currently visible.
+    func readText(tag region: TextRegion) -> String {
+        guard let surface else { return "" }
+        let selection = ghostty_selection_s(
+            top_left: ghostty_point_s(tag: region.tag, coord: GHOSTTY_POINT_COORD_TOP_LEFT, x: 0, y: 0),
+            bottom_right: ghostty_point_s(tag: region.tag, coord: GHOSTTY_POINT_COORD_BOTTOM_RIGHT, x: 0, y: 0),
+            rectangle: false)
+        var text = ghostty_text_s()
+        guard ghostty_surface_read_text(surface, selection, &text) else { return "" }
+        defer { ghostty_surface_free_text(surface, &text) }
+        guard let pointer = text.text else { return "" }
+        return String(decoding: UnsafeRawBufferPointer(start: pointer, count: Int(text.text_len)), as: UTF8.self)
+    }
+
+    func readSelection() -> String {
+        guard let surface, ghostty_surface_has_selection(surface) else { return "" }
+        var text = ghostty_text_s()
+        guard ghostty_surface_read_selection(surface, &text) else { return "" }
+        defer { ghostty_surface_free_text(surface, &text) }
+        guard let pointer = text.text else { return "" }
+        return String(decoding: UnsafeRawBufferPointer(start: pointer, count: Int(text.text_len)), as: UTF8.self)
     }
 
     override func updateTrackingAreas() {
@@ -327,16 +366,7 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
     }
 
     override func accessibilityValue() -> Any? {
-        guard let surface else { return "" }
-        let selection = ghostty_selection_s(
-            top_left: ghostty_point_s(tag: GHOSTTY_POINT_VIEWPORT, coord: GHOSTTY_POINT_COORD_TOP_LEFT, x: 0, y: 0),
-            bottom_right: ghostty_point_s(tag: GHOSTTY_POINT_VIEWPORT, coord: GHOSTTY_POINT_COORD_BOTTOM_RIGHT, x: 0, y: 0),
-            rectangle: false)
-        var text = ghostty_text_s()
-        guard ghostty_surface_read_text(surface, selection, &text) else { return "" }
-        defer { ghostty_surface_free_text(surface, &text) }
-        guard let pointer = text.text else { return "" }
-        return String(decoding: UnsafeRawBufferPointer(start: pointer, count: Int(text.text_len)), as: UTF8.self)
+        readText(tag: .viewport)
     }
 
     func confirmClipboard(_ text: String, state: UnsafeMutableRawPointer?, request: ghostty_clipboard_request_e) {
