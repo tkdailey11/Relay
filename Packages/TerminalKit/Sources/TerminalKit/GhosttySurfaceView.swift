@@ -70,6 +70,7 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
             guard surface != nil else { throw TerminalError.initialization("libghostty could not create a shell surface.") }
             updateAppearance()
             resizeSurface()
+            runtime.register(self)
             TerminalDiagnostics.info("Surface created for \(command ?? "the login shell") in \(workingDirectory.path)")
             // AppKit attachment happens during SwiftUI reconciliation.
             DispatchQueue.main.async { [weak self] in self?.session?.updateStatus(.running) }
@@ -79,6 +80,13 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
                 self?.session?.updateStatus(.failed(error.localizedDescription))
             }
         }
+    }
+
+    /// Applies a configuration rebuilt from changed settings. `command` is read only at spawn,
+    /// so a running surface is unaffected by which configuration it is handed now.
+    func applyConfiguration(_ config: ghostty_config_t) {
+        guard let surface else { return }
+        ghostty_surface_update_config(surface, config)
     }
 
     func close() {

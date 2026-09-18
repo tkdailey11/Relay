@@ -4,9 +4,20 @@ import GhosttyKit
 @MainActor
 final class GhosttyRuntime {
     // libghostty global initialization and argv have process lifetime.
-    static let shared: Result<GhosttyRuntime, Error> = Result { try GhosttyRuntime() }
+    private static var storage: Result<GhosttyRuntime, Error>?
+    static var shared: Result<GhosttyRuntime, Error> {
+        if let storage { return storage }
+        let result = Result { try GhosttyRuntime() }
+        storage = result
+        return result
+    }
+    /// Settings can be chosen before any terminal exists, and reading them must not be what
+    /// starts libghostty; until then the new values simply go into the first configuration.
+    static var sharedIfStarted: Result<GhosttyRuntime, Error>? { storage }
+
     let app: ghostty_app_t
-    private let config: ghostty_config_t
+    private var config: ghostty_config_t
+    private var settings: TerminalSettings
     private var observers: [NSObjectProtocol] = []
     private var appearanceObservation: NSKeyValueObservation?
     private let themes: (light: URL, dark: URL)
@@ -14,6 +25,11 @@ final class GhosttyRuntime {
     /// every config handed to ghostty_app_update_config has to outlive the surfaces that read it,
     /// so each distinct command keeps its config for the life of the process.
     private var commandConfigs: [String: ghostty_config_t] = [:]
+    /// Configurations replaced by a settings change. A surface reads its configuration lazily,
+    /// so the one it was created under is never freed.
+    private var retired: [ghostty_config_t] = []
+    /// Live surfaces, so a settings change reaches terminals already on screen.
+    private let surfaces = NSHashTable<GhosttySurfaceView>.weakObjects()
 
     private init() throws {
         guard let resources = Bundle.module.url(forResource: "ghostty", withExtension: nil),
@@ -29,24 +45,10 @@ final class GhosttyRuntime {
         guard ghostty_init(UInt(arguments.count), argv) == GHOSTTY_SUCCESS else {
             throw TerminalError.initialization("libghostty initialization failed.")
         }
-        guard let config = ghostty_config_new() else {
-            throw TerminalError.initialization("libghostty could not allocate its configuration.")
-        }
-        do {
-            try Self.loadSettings(into: config, light: light, dark: dark)
-        } catch {
-            ghostty_config_free(config)
-            throw error
-        }
-        ghostty_config_finalize(config)
-        if ghostty_config_diagnostics_count(config) > 0 {
-            let diagnostic = ghostty_config_get_diagnostic(config, 0)
-            let message = diagnostic.message.map { String(cString: $0) } ?? "Invalid terminal configuration."
-            ghostty_config_free(config)
-            throw TerminalError.initialization(message)
-        }
-        self.config = config
+        let settings = Terminal.settings.sanitized
+        self.settings = settings
         self.themes = (light, dark)
+        self.config = try Self.makeConfig(light: light, dark: dark, settings: settings, command: nil)
         var callbacks = ghostty_runtime_config_s()
         callbacks.supports_selection_clipboard = false
         callbacks.wakeup_cb = { _ in
@@ -106,8 +108,8 @@ final class GhosttyRuntime {
         callbacks.close_surface_cb = { userdata, _ in
             MainActor.assumeIsolated { GhosttySurfaceView.from(userdata)?.processExited() }
         }
-        guard let app = ghostty_app_new(&callbacks, config) else {
-            ghostty_config_free(config)
+        guard let app = ghostty_app_new(&callbacks, self.config) else {
+            ghostty_config_free(self.config)
             throw TerminalError.initialization("libghostty could not create its runtime.")
         }
         self.app = app
@@ -148,18 +150,57 @@ final class GhosttyRuntime {
 
     private func configuration(for command: String) throws -> ghostty_config_t {
         if let existing = commandConfigs[command] { return existing }
-        guard let scoped = ghostty_config_new() else {
+        let scoped = try Self.makeConfig(light: themes.light, dark: themes.dark,
+                                         settings: settings, command: command)
+        commandConfigs[command] = scoped
+        return scoped
+    }
+
+    private static func makeConfig(light: URL, dark: URL, settings: TerminalSettings,
+                                   command: String?) throws -> ghostty_config_t {
+        guard let config = ghostty_config_new() else {
             throw TerminalError.initialization("libghostty could not allocate its configuration.")
         }
         do {
-            try Self.loadSettings(into: scoped, light: themes.light, dark: themes.dark, command: command)
+            try loadSettings(into: config, light: light, dark: dark, settings: settings, command: command)
         } catch {
-            ghostty_config_free(scoped)
+            ghostty_config_free(config)
             throw error
         }
-        ghostty_config_finalize(scoped)
-        commandConfigs[command] = scoped
-        return scoped
+        ghostty_config_finalize(config)
+        if ghostty_config_diagnostics_count(config) > 0 {
+            let diagnostic = ghostty_config_get_diagnostic(config, 0)
+            let message = diagnostic.message.map { String(cString: $0) } ?? "Invalid terminal configuration."
+            ghostty_config_free(config)
+            throw TerminalError.initialization(message)
+        }
+        return config
+    }
+
+    func register(_ view: GhosttySurfaceView) {
+        surfaces.add(view)
+    }
+
+    /// Rewrites the configuration and pushes it into the terminals already on screen. A bad
+    /// value is rejected by libghostty's own diagnostics, in which case the previous settings
+    /// stay in force rather than the terminal breaking.
+    func apply(_ settings: TerminalSettings) {
+        guard settings != self.settings else { return }
+        do {
+            let updated = try Self.makeConfig(light: themes.light, dark: themes.dark,
+                                              settings: settings, command: nil)
+            // Never freed: a surface reads the configuration it was created under lazily.
+            retired.append(config)
+            retired.append(contentsOf: commandConfigs.values)
+            commandConfigs.removeAll()
+            config = updated
+            self.settings = settings
+            ghostty_app_update_config(app, updated)
+            for view in surfaces.allObjects { view.applyConfiguration(updated) }
+            TerminalDiagnostics.info("Applied terminal settings: \(settings.fontFamily ?? "default font") at \(Int(settings.fontSize))pt, \(surfaces.allObjects.count) surface(s)")
+        } catch {
+            TerminalDiagnostics.error("Could not apply terminal settings: \(error.localizedDescription)")
+        }
     }
 
     /// A filesystem-safe directory name per command. Swift's own hashValue is seeded per process,
@@ -181,26 +222,26 @@ final class GhosttyRuntime {
     /// a user's ~/Library/Application Support/com.mitchellh.ghostty/config still supplies keys
     /// Relay leaves unset.
     private static func loadSettings(into config: ghostty_config_t, light: URL, dark: URL,
-                                     command: String? = nil) throws {
+                                     settings: TerminalSettings, command: String? = nil) throws {
         // Each command needs its own XDG_CONFIG_HOME because libghostty only ever reads
         // `ghostty/config` beneath it.
         let base = URL.applicationSupportDirectory.appending(path: "Relay/Terminal")
         let root = command.map { base.appending(path: "commands/\(Self.directoryName(for: $0))") } ?? base
-        let settings = root.appending(path: "relay.conf")
+        let file = root.appending(path: "relay.conf")
         do {
             try FileManager.default.createDirectory(at: root.appending(path: "ghostty"),
                                                     withIntermediateDirectories: true)
             try """
                 theme = light:\(light.path),dark:\(dark.path)
                 keybind = clear
-                font-size = 13
+                \(settings.configurationLines.joined(separator: "\n"))
                 window-padding-x = 8
                 window-padding-y = 8
                 clipboard-read = ask
                 clipboard-write = ask
                 \(command.map { "command = \($0)\n" } ?? "")
-                """.write(to: settings, atomically: true, encoding: .utf8)
-            try "config-file = \(settings.path)\n"
+                """.write(to: file, atomically: true, encoding: .utf8)
+            try "config-file = \(file.path)\n"
                 .write(to: root.appending(path: "ghostty/config"), atomically: true, encoding: .utf8)
         } catch {
             throw TerminalError.initialization("Relay couldn’t write its terminal settings. \(error.localizedDescription)")

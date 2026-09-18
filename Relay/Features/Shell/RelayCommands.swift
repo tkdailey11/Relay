@@ -1,4 +1,5 @@
 import SwiftUI
+import TerminalKit
 
 // Terminal focus and session switching are published by the visible workspace shell and
 // consumed by the menu bar, so shortcuts stay discoverable in the View menu.
@@ -33,6 +34,7 @@ extension FocusedValues {
 }
 
 struct RelayCommands: Commands {
+    let settings: SettingsStore
     @FocusedValue(\.terminalFocus) private var terminalFocus
     @FocusedValue(\.sessionSwitch) private var sessionSwitch
     @FocusedValue(\.diagnostics) private var diagnostics
@@ -43,6 +45,23 @@ struct RelayCommands: Commands {
         CommandGroup(after: .help) {
             Button("Diagnostics…") { diagnostics?.show() }
                 .disabled(diagnostics == nil)
+        }
+        // Font size is a preference rather than a per-surface state, so these move the setting
+        // and every open terminal follows.
+        CommandGroup(after: .toolbar) {
+            Button("Bigger Text", systemImage: "textformat.size.larger") {
+                settings.adjustFontSize(by: 1)
+            }
+            .keyboardShortcut("+", modifiers: .command)
+            .disabled(settings.fontSize >= TerminalSettings.maximumFontSize)
+            Button("Smaller Text", systemImage: "textformat.size.smaller") {
+                settings.adjustFontSize(by: -1)
+            }
+            .keyboardShortcut("-", modifiers: .command)
+            .disabled(settings.fontSize <= TerminalSettings.minimumFontSize)
+            Button("Actual Size") { settings.resetFontSize() }
+                .keyboardShortcut("0", modifiers: .command)
+            Divider()
         }
         CommandGroup(after: .sidebar) {
             Button(terminalFocus?.isExpanded == true ? "Exit Terminal Focus" : "Focus Terminal") {

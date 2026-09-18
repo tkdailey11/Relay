@@ -99,6 +99,16 @@ For anything the in-app report cannot explain, Relay also logs to the unified lo
 log stream --predicate 'subsystem == "com.tylerdailey.Relay"' --level debug
 ```
 
+## Settings
+
+Terminal font family and size live in **Relay ▸ Settings ▸ Terminal** and apply to open terminals
+immediately. ⌘+, ⌘− and ⌘0 in the View menu move the same preference, so every terminal agrees
+with Settings and the change survives a relaunch.
+
+**Settings ▸ Sessions** exposes the per-kind command overrides that previously required
+`defaults write com.tylerdailey.Relay "RelayCommand.Copilot" "gh copilot"`. It writes the same
+keys, so a tester whose CLI Relay cannot find can fix it themselves with a full path.
+
 ## Verifying a build before sending it out
 
 ```sh
