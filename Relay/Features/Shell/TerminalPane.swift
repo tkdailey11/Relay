@@ -10,27 +10,25 @@ struct TerminalPane: View {
     let selectSession: (Session) -> Void
     let closeSession: (Session) -> Void
     @Binding var isExpanded: Bool
-    let addSession: (SessionKind) -> Void
+    let types: SessionTypeStore
+    let addSession: (SessionType) -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 if isExpanded && !sessions.isEmpty {
-                    FocusSessionTabs(status: terminals.status, sessions: sessions, selectedSessionID: selectedSession?.id,
+                    FocusSessionTabs(status: terminals.status, resolve: types.resolve,
+                                     sessions: sessions, selectedSessionID: selectedSession?.id,
                                      selectSession: selectSession, closeSession: closeSession)
                 } else {
-                    Label(selectedSession?.kind.rawValue ?? "Terminal",
-                          systemImage: selectedSession?.kind.symbol ?? "terminal")
+                    Label(selectedSession.map { types.resolve($0).name } ?? "Terminal",
+                          systemImage: selectedSession.map { types.resolve($0).symbol } ?? "terminal")
                     Spacer()
                 }
                 if isExpanded {
                     Menu("New Session", systemImage: "plus") {
-                        ForEach(SessionKind.allCases) { kind in
-                            Button("New \(kind.rawValue) Session", systemImage: kind.symbol) {
-                                addSession(kind)
-                            }
-                        }
+                        NewSessionMenuItems(types: types.enabled, addSession: addSession)
                     }
                     .labelStyle(.iconOnly)
                     .menuStyle(.borderlessButton)
@@ -58,11 +56,13 @@ struct TerminalPane: View {
             // Expand explicitly: an empty-state ContentUnavailableView hugs its content,
             // which would otherwise let the header drift to the middle of the pane.
             TerminalContent(terminals: terminals, selectedSession: selectedSession,
-                            focusRequest: focusRequest, addSession: addSession)
+                            focusRequest: focusRequest, types: types, addSession: addSession)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task(id: selectedSession?.id) {
-            if let selectedSession { await terminals.prepare(selectedSession, directory: directory) }
+            guard let selectedSession else { return }
+            await terminals.prepare(selectedSession, type: types.type(id: selectedSession.typeID),
+                                    directory: directory)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(colorScheme == .dark ? Color(.relayInk) : Color(nsColor: .textBackgroundColor))

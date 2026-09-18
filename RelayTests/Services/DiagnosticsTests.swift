@@ -18,8 +18,8 @@ struct DiagnosticsTests {
         let store = WorkspaceStore(fileURL: nil, terminalsEnabled: false)
         store.addWorkspace(at: URL(filePath: "/tmp/relay-diagnostics"))
         let workspace = try #require(store.state.workspaces.first)
-        store.addSession(.claude, to: workspace.id)
-        store.addTemporarySession(.shell)
+        store.addSession(.claudePreset, to: workspace.id)
+        store.addTemporarySession(.shellPreset)
 
         let log = DiagnosticLog()
         log.record(category: .session, level: .error, message: "Could not find `claude`")
@@ -45,7 +45,8 @@ struct DiagnosticsTests {
     @Test func failuresReachTheSharedLog() async throws {
         DiagnosticLog.shared.clear()
         let manager = TerminalSessionManager(resolveCommand: { _ in "/nonexistent/claude" })
-        await manager.prepare(Session(kind: .claude), directory: "/nonexistent/directory")
+        await manager.prepare(Session(type: .claudePreset), type: .claudePreset,
+                              directory: "/nonexistent/directory")
         let messages = DiagnosticLog.shared.entries.map(\.message)
         #expect(messages.contains { $0.contains("Could not start Claude") })
         #expect(DiagnosticLog.shared.entries.contains { $0.level == .error })

@@ -9,7 +9,7 @@ struct Workspace: Identifiable, Codable, Equatable {
     var selectedSessionID: UUID?
 
     static let samples: [Workspace] = {
-        let sessions = SessionKind.allCases.map { Session(kind: $0) }
+        let sessions = SessionType.presets.map { Session(type: $0) }
         return [
             Workspace(name: "Relay", path: "~/Developer/Relay", sessions: sessions,
                              selectedSessionID: sessions.first?.id),

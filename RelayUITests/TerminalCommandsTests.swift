@@ -14,7 +14,11 @@ final class TerminalCommandsTests: XCTestCase {
         app.launch()
         defer { app.terminate() }
 
-        // ⌘N replaces New Window, so it is what starts the session.
+        // ⌘N replaces New Window, so it is what starts the session. The File menu is built
+        // from the focused window's session types, so wait for the window before pressing it.
+        XCTAssertTrue(app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH 'New ' AND label ENDSWITH ' Session'")
+        ).firstMatch.waitForExistence(timeout: 10), "empty state never appeared")
         app.typeKey("n", modifierFlags: .command)
         let terminal = app.textViews["Terminal"]
         XCTAssertTrue(terminal.waitForExistence(timeout: 15))

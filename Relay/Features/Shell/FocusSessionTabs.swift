@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FocusSessionTabs: View {
     let status: (Session) -> String
+    let resolve: (Session) -> ResolvedSessionType
     let sessions: [Session]
     let selectedSessionID: Session.ID?
     let selectSession: (Session) -> Void
@@ -13,10 +14,11 @@ struct FocusSessionTabs: View {
                 HStack(spacing: 4) {
                     ForEach(sessions) { session in
                         let isSelected = session.id == selectedSessionID
+                        let type = resolve(session)
                         Button {
                             selectSession(session)
                         } label: {
-                            Label(session.kind.rawValue, systemImage: session.kind.symbol)
+                            Label(type.name, systemImage: type.symbol)
                                 .lineLimit(1)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
@@ -31,7 +33,7 @@ struct FocusSessionTabs: View {
                                 }
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(session.kind.rawValue) session")
+                        .accessibilityLabel("\(type.name) session")
                         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                         .accessibilityValue(isSelected ? "Selected, \(status(session))" : status(session))
                         .contextMenu {

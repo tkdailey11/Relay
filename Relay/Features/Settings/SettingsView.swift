@@ -4,15 +4,16 @@ import TerminalKit
 
 struct SettingsView: View {
     @Bindable var settings: SettingsStore
+    @Bindable var sessionTypes: SessionTypeStore
 
     var body: some View {
         TabView {
             TerminalSettingsView(settings: settings)
                 .tabItem { Label("Terminal", systemImage: "terminal") }
-            SessionSettingsView(settings: settings)
-                .tabItem { Label("Sessions", systemImage: "sparkle") }
+            SessionTypeSettingsView(store: sessionTypes)
+                .tabItem { Label("Session Types", systemImage: "sparkle") }
         }
-        .frame(width: 520)
+        .frame(width: 560)
     }
 }
 
@@ -65,60 +66,6 @@ private struct TerminalSettingsView: View {
 
     private var fontFamily: String? {
         settings.fontFamily.isEmpty ? nil : settings.fontFamily
-    }
-}
-
-private struct SessionSettingsView: View {
-    @Bindable var settings: SettingsStore
-
-    var body: some View {
-        Form {
-            Section {
-                ForEach(SessionKind.allCases) { kind in
-                    CommandField(settings: settings, kind: kind)
-                }
-            } header: {
-                Text("Command")
-            } footer: {
-                Text("Leave a command empty to launch your login shell instead. Relay resolves the first word on your login shell’s PATH, so a bare name is usually enough.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
-
-private struct CommandField: View {
-    @Bindable var settings: SettingsStore
-    let kind: SessionKind
-    @State private var text = ""
-
-    var body: some View {
-        // LabeledContent keeps the session kind visible once the field has been filled in,
-        // which a placeholder alone does not.
-        LabeledContent(kind.rawValue) {
-            HStack {
-                TextField("", text: $text, prompt: Text(placeholder))
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityLabel("\(kind.rawValue) command")
-                Button("Reset") {
-                    settings.clearOverride(for: kind)
-                    text = ""
-                }
-                .disabled(!settings.hasOverride(for: kind))
-                .accessibilityLabel("Reset \(kind.rawValue) command")
-            }
-        }
-        .onAppear { text = settings.command(for: kind) }
-        .onChange(of: text) { settings.setCommand(text, for: kind) }
-    }
-
-    private var placeholder: String {
-        switch kind {
-        case .claude: "claude"
-        case .copilot: "copilot"
-        case .shell: "your login shell"
-        }
     }
 }
 

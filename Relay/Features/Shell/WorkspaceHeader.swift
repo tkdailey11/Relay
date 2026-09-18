@@ -5,7 +5,8 @@ struct WorkspaceHeader: View {
     let path: String
     let sessionCount: Int
     let isTemporary: Bool
-    let addSession: (SessionKind) -> Void
+    let types: [SessionType]
+    let addSession: (SessionType) -> Void
 
     var body: some View {
         HStack(spacing: 14) {
@@ -24,9 +25,7 @@ struct WorkspaceHeader: View {
             Text("^[\(sessionCount) session](inflect: true)")
                 .font(.caption).foregroundStyle(.secondary)
             Menu {
-                ForEach(SessionKind.allCases) { kind in
-                    Button("New \(kind.rawValue) Session", systemImage: kind.symbol) { addSession(kind) }
-                }
+                NewSessionMenuItems(types: types, addSession: addSession)
             } label: {
                 Label("New Session", systemImage: "plus")
             }

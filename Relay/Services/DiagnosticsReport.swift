@@ -62,7 +62,7 @@ enum DiagnosticsReport {
     private static func sessions(_ sessions: [Session], in store: WorkspaceStore,
                                  indent: String) -> [String] {
         sessions.map { session in
-            var line = "\(indent)- \(session.kind.rawValue): \(store.terminals.status(for: session))"
+            var line = "\(indent)- \(session.typeName) [\(session.typeID)]: \(store.terminals.status(for: session))"
             if let terminal = store.terminals.sessions[session.id] {
                 line += ", command \(terminal.command ?? "login shell")"
             }

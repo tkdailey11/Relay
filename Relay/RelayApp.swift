@@ -13,6 +13,7 @@ struct RelayApp: App {
     @NSApplicationDelegateAdaptor(RelayApplicationDelegate.self) private var delegate
     @State private var store: WorkspaceStore
     @State private var settings: SettingsStore
+    @State private var sessionTypes: SessionTypeStore
 
     init() {
         // libghostty's failures are the ones that make Relay useless rather than merely
@@ -34,7 +35,9 @@ struct RelayApp: App {
         // them rather than under the defaults. Under test they come from a suite wiped on every
         // launch, so a run neither depends on nor overwrites real preferences.
         // SessionLauncher still reads command overrides from .standard, which no UI test sets.
-        _settings = State(initialValue: SettingsStore(defaults: isUITesting ? Self.testingDefaults() : .standard))
+        let defaults = isUITesting ? Self.testingDefaults() : UserDefaults.standard
+        _settings = State(initialValue: SettingsStore(defaults: defaults))
+        _sessionTypes = State(initialValue: SessionTypeStore(defaults: defaults))
         if isUITesting {
             let store = WorkspaceStore(fileURL: nil)
             if let path = environment["RELAY_UI_TEST_WORKSPACE"] {
@@ -54,15 +57,15 @@ struct RelayApp: App {
 
     var body: some Scene {
         Window("Relay", id: "main") {
-            ContentView(store: store)
+            ContentView(store: store, sessionTypes: sessionTypes)
                 .onAppear { delegate.terminals = store.terminals }
         }
         .defaultLaunchBehavior(.presented)
         .defaultSize(width: 1180, height: 780)
-        .commands { RelayCommands(settings: settings) }
+        .commands { RelayCommands(settings: settings, sessionTypes: sessionTypes) }
 
         Settings {
-            SettingsView(settings: settings)
+            SettingsView(settings: settings, sessionTypes: sessionTypes)
         }
     }
 }

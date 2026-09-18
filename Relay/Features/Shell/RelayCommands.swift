@@ -33,7 +33,7 @@ struct ActiveTerminalAction: Equatable {
 /// Relay is a single-window app, so ⌘N makes a session rather than a window.
 struct NewSessionAction: Equatable {
     let destinationName: String
-    let add: (SessionKind) -> Void
+    let add: (SessionType) -> Void
 
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.destinationName == rhs.destinationName }
 }
@@ -62,6 +62,9 @@ extension FocusedValues {
 
 struct RelayCommands: Commands {
     let settings: SettingsStore
+    /// Session types are app state, not window state. Building the File menu from a focused
+    /// value instead left it empty at launch, and SwiftUI drops a menu that has no items.
+    let sessionTypes: SessionTypeStore
     @FocusedValue(\.terminalFocus) private var terminalFocus
     @FocusedValue(\.sessionSwitch) private var sessionSwitch
     @FocusedValue(\.diagnostics) private var diagnostics
@@ -73,11 +76,11 @@ struct RelayCommands: Commands {
         // Relay has one window, so the File menu's New Window is replaced by the thing a user
         // actually wants a shortcut for.
         CommandGroup(replacing: .newItem) {
-            ForEach(SessionKind.allCases) { kind in
-                Button("New \(kind.rawValue) Session", systemImage: kind.symbol) {
-                    newSession?.add(kind)
+            ForEach(sessionTypes.enabled) { type in
+                Button("New \(type.name) Session", systemImage: type.symbol) {
+                    newSession?.add(type)
                 }
-                .keyboardShortcut(shortcut(for: kind))
+                .keyboardShortcut(shortcut(for: type))
                 .disabled(newSession == nil)
             }
         }
@@ -145,10 +148,11 @@ struct RelayCommands: Commands {
             .disabled(activeTerminal == nil)
     }
 
-    /// ⌘N is the one a user expects; the other kinds stay in the menu without a shortcut.
+    /// ⌘N goes to the default type, usually Shell; the rest stay in the menu unbound, since
+    /// the list is user editable and arbitrary shortcuts would move underneath people.
     /// The optional-shortcut overload is what allows that, rather than a second Button branch.
-    private func shortcut(for kind: SessionKind) -> KeyboardShortcut? {
-        kind == .shell ? KeyboardShortcut("n", modifiers: .command) : nil
+    private func shortcut(for type: SessionType) -> KeyboardShortcut? {
+        type.id == sessionTypes.defaultType.id ? KeyboardShortcut("n", modifiers: .command) : nil
     }
 
     private var sessionTitles: [String] {

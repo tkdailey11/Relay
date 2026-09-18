@@ -1,6 +1,6 @@
 import Foundation
 
-/// Maps a session kind to the command line that starts it.
+/// Maps a session type to the command line that starts it.
 ///
 /// Relay is launched by the Finder, so its environment carries launchd's minimal PATH rather than
 /// the user's. The CLIs these launchers depend on almost always live somewhere only the login
@@ -8,40 +8,26 @@ import Foundation
 /// terminal spawns it, which is also what lets a missing CLI be reported as an error instead of a
 /// shell that flashes and exits.
 enum SessionLauncher {
-    /// nil launches the user's login shell. Anything else is a command line whose first word is an
-    /// absolute path.
-    static func command(for kind: SessionKind, defaults: UserDefaults = .standard) async throws -> String? {
-        let candidates = candidates(for: kind, defaults: defaults)
-        guard !candidates.isEmpty else { return nil }
-        for candidate in candidates {
-            var words = candidate.split(separator: " ").map(String.init)
-            guard let name = words.first else { continue }
-            if let executable = await LoginShellPath.shared.locate(name) {
-                words[0] = quoted(executable.path)
-                let command = words.joined(separator: " ")
-                RelayLog.info(.session, "Resolved \(kind.rawValue) to \(command)")
-                return command
-            }
-        }
-        let names = candidates.compactMap { $0.split(separator: " ").first.map(String.init) }
-        let searchPath = await LoginShellPath.shared.describeSearchPath()
-        RelayLog.error(.session, "Could not find \(names.joined(separator: " or ")) for \(kind.rawValue) on PATH: \(searchPath)")
-        throw LaunchError.executableNotFound(kind: kind, names: names)
+    /// nil launches the user's login shell. Anything else is a command line whose first word is
+    /// an absolute path. `command` comes from the session's type, so a user who installed a CLI
+    /// somewhere unusual can point Relay at it in Settings.
+    static func command(for type: SessionType) async throws -> String? {
+        try await resolve(type.resolvedCommand, typeName: type.name)
     }
 
-    /// The CLIs move faster than Relay ships, so the command line is overridable without a new
-    /// build: `defaults write com.tylerdailey.Relay "RelayCommand.Copilot" "gh copilot"`.
-    /// An empty string means "launch the login shell".
-    private static func candidates(for kind: SessionKind, defaults: UserDefaults) -> [String] {
-        if let configured = defaults.string(forKey: "RelayCommand.\(kind.rawValue)") {
-            return configured.isEmpty ? [] : [configured]
+    static func resolve(_ command: String?, typeName: String) async throws -> String? {
+        guard let command, !command.isEmpty else { return nil }
+        var words = command.split(separator: " ").map(String.init)
+        guard let name = words.first else { return nil }
+        if let executable = await LoginShellPath.shared.locate(name) {
+            words[0] = quoted(executable.path)
+            let resolved = words.joined(separator: " ")
+            RelayLog.info(.session, "Resolved \(typeName) to \(resolved)")
+            return resolved
         }
-        switch kind {
-        case .claude: return ["claude"]
-        // GitHub moved Copilot from a `gh` extension to a standalone CLI; either may be installed.
-        case .copilot: return ["copilot", "gh copilot"]
-        case .shell: return []
-        }
+        let searchPath = await LoginShellPath.shared.describeSearchPath()
+        RelayLog.error(.session, "Could not find \(name) for \(typeName) on PATH: \(searchPath)")
+        throw LaunchError.executableNotFound(typeName: typeName, name: name)
     }
 
     private static func quoted(_ path: String) -> String {
@@ -49,20 +35,19 @@ enum SessionLauncher {
     }
 
     enum LaunchError: LocalizedError {
-        case executableNotFound(kind: SessionKind, names: [String])
+        case executableNotFound(typeName: String, name: String)
 
         var errorDescription: String? {
             switch self {
-            case .executableNotFound(_, let names):
-                let list = ListFormatter.localizedString(byJoining: names.map { "`\($0)`" })
-                return "Relay couldn’t find \(list) on your login shell’s PATH."
+            case .executableNotFound(_, let name):
+                return "Relay couldn’t find `\(name)` on your login shell’s PATH."
             }
         }
 
         var recoverySuggestion: String? {
             switch self {
-            case .executableNotFound(let kind, _):
-                return "Install the \(kind.rawValue) CLI, then start a new \(kind.rawValue) session."
+            case .executableNotFound(let typeName, _):
+                return "Install it, or set the full path for \(typeName) in Settings ▸ Session Types."
             }
         }
     }

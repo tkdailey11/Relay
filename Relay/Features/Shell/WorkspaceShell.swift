@@ -13,7 +13,8 @@ struct WorkspaceShell: View {
     @Binding var selectedSessionID: UUID?
     var isTemporary = false
     @Binding var isTerminalExpanded: Bool
-    let addSession: (SessionKind) -> Void
+    let types: SessionTypeStore
+    let addSession: (SessionType) -> Void
     private var selectedSession: Session? {
         sessions.first { $0.id == selectedSessionID }
     }
@@ -24,7 +25,7 @@ struct WorkspaceShell: View {
             // terminal is never torn down and rebuilt.
             if !isTerminalExpanded {
                 WorkspaceHeader(name: name, path: path, sessionCount: sessions.count,
-                                isTemporary: isTemporary, addSession: addSession)
+                                isTemporary: isTemporary, types: types.enabled, addSession: addSession)
                 if !sessions.isEmpty {
                     sessionCards
                 }
@@ -33,7 +34,7 @@ struct WorkspaceShell: View {
                          selectedSession: selectedSession, sessions: sessions,
                                 selectSession: selectSession, closeSession: closeSession,
                                 isExpanded: $isTerminalExpanded,
-                                addSession: addSession)
+                                types: types, addSession: addSession)
             if !isTerminalExpanded {
                 HStack(spacing: 6) {
                     Label("Terminal", systemImage: "terminal")
@@ -63,7 +64,7 @@ struct WorkspaceShell: View {
             ScrollbackSearchAction(show: showScrollbackSearch)
         })
         .focusedSceneValue(\.sessionSwitch, SessionSwitchAction(
-            titles: sessions.map(\.kind.rawValue),
+            titles: sessions.map { types.resolve($0).name },
             selectedIndex: sessions.firstIndex { $0.id == selectedSessionID },
             select: selectSession
         ))
@@ -73,7 +74,9 @@ struct WorkspaceShell: View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 12) {
                 ForEach(sessions) { session in
-                    SessionCard(session: session, status: terminals.status(for: session), isSelected: session.id == selectedSessionID) {
+                    SessionCard(session: session, type: types.resolve(session),
+                                status: terminals.status(for: session),
+                                isSelected: session.id == selectedSessionID) {
                         selectSession(session)
                     }
                     .contextMenu {
@@ -91,7 +94,7 @@ struct WorkspaceShell: View {
     private var activeTerminal: ActiveTerminalAction? {
         guard let selectedSession, let terminal = terminals.sessions[selectedSession.id] else { return nil }
         return ActiveTerminalAction(
-            sessionName: selectedSession.kind.rawValue,
+            sessionName: types.resolve(selectedSession).name,
             perform: { terminal.perform($0) },
             scrollback: { terminal.scrollbackText }
         )

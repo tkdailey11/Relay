@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WorkspaceSidebar: View {
     @Bindable var store: WorkspaceStore
+    @Bindable var types: SessionTypeStore
     let addWorkspace: () -> Void
     @State private var workspacePendingRemoval: Workspace?
     @State private var showsRemoveConfirmation = false
@@ -58,26 +59,7 @@ struct WorkspaceSidebar: View {
             .buttonStyle(.plain).padding(20)
             .keyboardShortcut("o", modifiers: [.command, .shift])
             Divider().padding(.horizontal, 16)
-            VStack(alignment: .leading, spacing: 12) {
-                Text("TEMPORARY SESSION").font(.caption).bold().foregroundStyle(.secondary)
-                HStack(spacing: 8) {
-                    ForEach(SessionKind.allCases) { kind in
-                        Button { store.addTemporarySession(kind) } label: {
-                            VStack(spacing: 8) {
-                                Image(systemName: kind.symbol).font(.title3).foregroundStyle(kind.color)
-                                    .accessibilityHidden(true)
-                                Text(kind.rawValue).font(.caption)
-                            }
-                            .frame(maxWidth: .infinity).padding(.vertical, 12)
-                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
-                        }
-                        .accessibilityLabel("New temporary \(kind.rawValue) session")
-                        .accessibilityInputLabels([Text(kind.rawValue)])
-                        .buttonStyle(.plain).help("New temporary \(kind.rawValue) session in your home directory")
-                    }
-                }
-            }
-            .padding(20)
+            temporarySessionLaunchers
         }
         .confirmationDialog(removalTitle, isPresented: $showsRemoveConfirmation, titleVisibility: .visible) {
             Button("Remove Workspace", role: .destructive) {
@@ -88,6 +70,32 @@ struct WorkspaceSidebar: View {
         } message: {
             Text(removalMessage)
         }
+    }
+
+    /// A grid rather than a row: the session type list is user editable, so this has to hold
+    /// however many are enabled without pushing the sidebar wider.
+    private var temporarySessionLaunchers: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("TEMPORARY SESSION").font(.caption).bold().foregroundStyle(.secondary)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 8)], spacing: 8) {
+                ForEach(types.enabled) { type in
+                    Button { store.addTemporarySession(type) } label: {
+                        VStack(spacing: 8) {
+                            Image(systemName: type.symbol).font(.title3).foregroundStyle(type.color.color)
+                                .accessibilityHidden(true)
+                            Text(type.name).font(.caption).lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .accessibilityLabel("New temporary \(type.name) session")
+                    .accessibilityInputLabels([Text(type.name)])
+                    .buttonStyle(.plain)
+                    .help("New temporary \(type.name) session in your home directory")
+                }
+            }
+        }
+        .padding(20)
     }
 
     private var removalTitle: Text {

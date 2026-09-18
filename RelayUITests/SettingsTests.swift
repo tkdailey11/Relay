@@ -58,11 +58,14 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(app.buttons["Restore Defaults"].waitForExistence(timeout: 5),
                       "missing the Terminal tab's controls")
 
-        // The Sessions tab is where a tester fixes a CLI Relay could not find.
-        window.toolbars.buttons["Sessions"].click()
-        XCTAssertTrue(app.textFields["Claude command"].waitForExistence(timeout: 5),
-                      "missing the Claude command field")
-        XCTAssertTrue(app.textFields["Shell command"].exists)
+        // The Session Types tab is where a tester fixes a CLI Relay could not find.
+        window.toolbars.buttons["Session Types"].click()
+        // The presets are ordinary rows in the type list now.
+        XCTAssertTrue(app.descendants(matching: .any)["Claude session type"].waitForExistence(timeout: 5),
+                      "missing the Claude session type")
+        XCTAssertTrue(app.descendants(matching: .any)["Codex session type"].exists,
+                      "missing the Codex preset")
+        XCTAssertTrue(app.buttons["Restore Presets"].exists)
     }
 
     @MainActor

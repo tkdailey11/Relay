@@ -12,29 +12,36 @@ final class TerminalSessionManager {
     /// Membership also means "still wanted": close() removes an id so a session closed while its
     /// executable was being resolved never gets a process afterwards.
     private var preparing: Set<Session.ID> = []
-    private let resolveCommand: @Sendable (SessionKind) async throws -> String?
+    private let resolveCommand: @Sendable (SessionType) async throws -> String?
 
     init(allowsLaunching: Bool = true,
-         resolveCommand: @escaping @Sendable (SessionKind) async throws -> String? = {
+         resolveCommand: @escaping @Sendable (SessionType) async throws -> String? = {
              try await SessionLauncher.command(for: $0)
          }) {
         self.allowsLaunching = allowsLaunching
         self.resolveCommand = resolveCommand
     }
 
-    func prepare(_ session: Session, directory: String) async {
+    /// `type` is nil when the session's type has since been deleted, which leaves the session
+    /// on screen with its stored name but with nothing to start.
+    func prepare(_ session: Session, type: SessionType?, directory: String) async {
         guard allowsLaunching, sessions[session.id] == nil, errors[session.id] == nil,
               preparing.insert(session.id).inserted else { return }
         defer { preparing.remove(session.id) }
+        guard let type else {
+            RelayLog.error(.terminal, "No session type \(session.typeID) for a \(session.typeName) session")
+            errors[session.id] = "The \(session.typeName) session type was removed.\n\nAdd it again in Settings ▸ Session Types, or close this session."
+            return
+        }
         do {
-            let command = try await resolveCommand(session.kind)
+            let command = try await resolveCommand(type)
             guard preparing.contains(session.id) else { return }
             sessions[session.id] = try TerminalSession(workingDirectory: URL(filePath: directory),
                                                        command: command)
-            RelayLog.info(.terminal, "Started \(session.kind.rawValue) in \(directory)")
+            RelayLog.info(.terminal, "Started \(type.name) in \(directory)")
         } catch {
             guard preparing.contains(session.id) else { return }
-            RelayLog.error(.terminal, "Could not start \(session.kind.rawValue) in \(directory): \(error)")
+            RelayLog.error(.terminal, "Could not start \(type.name) in \(directory): \(error)")
             errors[session.id] = message(for: error)
         }
     }

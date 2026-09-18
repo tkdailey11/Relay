@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Bindable var store: WorkspaceStore
+    let sessionTypes: SessionTypeStore
     private var workspaces: [Workspace] { store.state.workspaces }
     @State private var isChoosingWorkspace = false
     @State private var isShowingError = false
@@ -16,31 +17,10 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            WorkspaceSidebar(store: store, addWorkspace: showWorkspacePicker)
+            WorkspaceSidebar(store: store, types: sessionTypes, addWorkspace: showWorkspacePicker)
                 .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 320)
         } detail: {
-            if store.destination == .temporary {
-                WorkspaceShell(terminals: store.terminals, name: "Temporary Sessions", path: store.temporaryWorkingDirectory,
-                               sessions: $store.temporarySessions,
-                               selectedSessionID: $store.selectedTemporarySessionID,
-                               isTemporary: true, isTerminalExpanded: $isTerminalExpanded,
-                               addSession: store.addTemporarySession)
-            } else if let index = selectedIndex {
-                let workspace = workspaces[index]
-                WorkspaceShell(terminals: store.terminals, name: workspace.name, path: workspace.path,
-                               sessions: $store.state.workspaces[index].sessions,
-                               selectedSessionID: $store.state.workspaces[index].selectedSessionID,
-                               isTerminalExpanded: $isTerminalExpanded,
-                               addSession: { store.addSession($0, to: workspace.id) })
-            } else {
-                ContentUnavailableView {
-                    Label("Your next workspace", systemImage: "folder.badge.plus")
-                } description: {
-                    Text("Choose a local folder to make room for your sessions.")
-                } actions: {
-                    Button("Add Workspace", action: showWorkspacePicker)
-                }
-            }
+            detail
         }
         .navigationTitle("")
         .frame(minWidth: 860, minHeight: 580).tint(.accentColor)
@@ -77,6 +57,35 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private var detail: some View {
+        if store.destination == .temporary {
+            WorkspaceShell(terminals: store.terminals, name: "Temporary Sessions",
+                           path: store.temporaryWorkingDirectory,
+                           sessions: $store.temporarySessions,
+                           selectedSessionID: $store.selectedTemporarySessionID,
+                           isTemporary: true, isTerminalExpanded: $isTerminalExpanded,
+                           types: sessionTypes,
+                           addSession: store.addTemporarySession)
+        } else if let index = selectedIndex {
+            let workspace = workspaces[index]
+            WorkspaceShell(terminals: store.terminals, name: workspace.name, path: workspace.path,
+                           sessions: $store.state.workspaces[index].sessions,
+                           selectedSessionID: $store.state.workspaces[index].selectedSessionID,
+                           isTerminalExpanded: $isTerminalExpanded,
+                           types: sessionTypes,
+                           addSession: { store.addSession($0, to: workspace.id) })
+        } else {
+            ContentUnavailableView {
+                Label("Your next workspace", systemImage: "folder.badge.plus")
+            } description: {
+                Text("Choose a local folder to make room for your sessions.")
+            } actions: {
+                Button("Add Workspace", action: showWorkspacePicker)
+            }
+        }
+    }
+
     private var isShowingShell: Bool {
         store.destination == .temporary || selectedIndex != nil
     }
@@ -106,5 +115,9 @@ struct ContentView: View {
     }
 }
 
-#Preview("Dark") { ContentView(store: .preview()).preferredColorScheme(.dark) }
-#Preview("Light") { ContentView(store: .preview()).preferredColorScheme(.light) }
+#Preview("Dark") {
+    ContentView(store: .preview(), sessionTypes: .preview()).preferredColorScheme(.dark)
+}
+#Preview("Light") {
+    ContentView(store: .preview(), sessionTypes: .preview()).preferredColorScheme(.light)
+}

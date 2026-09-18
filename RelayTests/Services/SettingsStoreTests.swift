@@ -51,26 +51,4 @@ struct SettingsStoreTests {
         #expect(store.terminalSettings.fontFamily == nil)
         #expect(suite.string(forKey: SettingsStore.fontFamilyKey) == nil)
     }
-
-    /// Settings writes the keys SessionLauncher already reads, so an override must change what
-    /// a session actually launches.
-    @Test func aCommandOverrideChangesWhatTheLauncherResolves() async throws {
-        let suite = defaults()
-        let store = SettingsStore(defaults: suite, apply: { _ in })
-        #expect(store.hasOverride(for: .claude) == false)
-
-        store.setCommand("/bin/echo hello", for: .claude)
-        #expect(store.hasOverride(for: .claude))
-        let resolved = try await SessionLauncher.command(for: .claude, defaults: suite)
-        #expect(resolved == "/bin/echo hello")
-
-        // An empty override is meaningful: it launches the login shell.
-        store.setCommand("", for: .claude)
-        #expect(try await SessionLauncher.command(for: .claude, defaults: suite) == nil)
-
-        // Resetting restores Relay's own default, which is not the same as an empty override.
-        store.clearOverride(for: .claude)
-        #expect(suite.string(forKey: SettingsStore.commandKey(for: .claude)) == nil)
-        #expect(store.command(for: .claude) == "")
-    }
 }

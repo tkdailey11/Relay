@@ -105,9 +105,26 @@ Terminal font family and size live in **Relay ▸ Settings ▸ Terminal** and ap
 immediately. ⌘+, ⌘− and ⌘0 in the View menu move the same preference, so every terminal agrees
 with Settings and the change survives a relaunch.
 
-**Settings ▸ Sessions** exposes the per-kind command overrides that previously required
-`defaults write com.tylerdailey.Relay "RelayCommand.Copilot" "gh copilot"`. It writes the same
-keys, so a tester whose CLI Relay cannot find can fix it themselves with a full path.
+**Settings ▸ Session Types** is the list of things a user can start. Relay ships Claude, Copilot,
+Codex and Shell as presets, and the Add menu offers more from a catalog (Gemini, Aider, Cursor,
+opencode, Copilot via `gh`) or a custom type with its own name, command, icon and color. Every
+row is editable, so a tester whose CLI Relay cannot find fixes it with a full path.
+
+Two behaviours worth knowing:
+
+- **Shell cannot be removed.** Relay is a terminal; the empty state and ⌘N both start a login
+  shell, so that one type is pinned. Everything else, presets included, can be removed.
+- **Removing a type leaves its sessions alone.** A running terminal keeps running and its card
+  keeps the name it was started under, with a generic icon. Starting a *new* session of a removed
+  type is what reports the type is gone.
+
+⌘N starts the default type, which is Shell unless it has been disabled. The other types stay in
+the File menu without shortcuts, since the list is user editable and bound keys would move
+underneath people as they reorder it.
+
+0.1's `defaults write com.tylerdailey.Relay "RelayCommand.Copilot" "gh copilot"` overrides are
+migrated onto their presets on first launch. 0.1 also tried `copilot` then `gh copilot`
+automatically; that hidden fallback is now the "Copilot (gh)" catalog entry instead.
 
 ## Terminal shortcuts
 

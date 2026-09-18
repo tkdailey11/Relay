@@ -15,7 +15,7 @@ struct RelayTests {
         let store = WorkspaceStore(fileURL: url)
         #expect(store.state.workspaces.isEmpty)
         #expect(store.errorMessage == nil)
-        let sessions = SessionKind.allCases.map { Session(kind: $0) }
+        let sessions = SessionType.presets.map { Session(type: $0) }
         let first = Workspace(name: "Project", path: "/tmp/project", sessions: sessions,
                               selectedSessionID: sessions[1].id)
         let second = Workspace(name: "Other", path: "/tmp/other")
@@ -45,7 +45,7 @@ struct RelayTests {
     @Test func repairsStaleSelectionsAndPreservesUnknownVersions() throws {
         let url = storageURL()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        let session = Session(kind: .shell)
+        let session = Session(type: .shellPreset)
         let workspace = Workspace(name: "Project", path: "/missing/project", sessions: [session],
                                   selectedSessionID: UUID())
         let store = WorkspaceStore(fileURL: url)
@@ -69,17 +69,17 @@ struct RelayTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let store = WorkspaceStore(fileURL: url)
         #expect(store.destination == .temporary)
-        store.addTemporarySession(.shell)
+        store.addTemporarySession(.shellPreset)
         #expect(store.temporarySessions.count == 1)
         #expect(FileManager.default.fileExists(atPath: url.path) == false)
 
-        let workspaceSession = Session(kind: .claude)
+        let workspaceSession = Session(type: .claudePreset)
         let workspace = Workspace(name: "Project", path: "/tmp/project", sessions: [workspaceSession],
                                   selectedSessionID: workspaceSession.id)
         store.state = WorkspaceSnapshot(workspaces: [workspace], selectedWorkspaceID: workspace.id)
         store.destination = .workspace(workspace.id)
         let persistedData = try Data(contentsOf: url)
-        store.addTemporarySession(.copilot)
+        store.addTemporarySession(.copilotPreset)
         let temporarySelection = store.selectedTemporarySessionID
         #expect(store.destination == .temporary)
         #expect(store.state.workspaces[0].sessions == [workspaceSession])
@@ -103,15 +103,15 @@ struct RelayTests {
         let store = WorkspaceStore(fileURL: nil)
         store.addWorkspace(at: URL(filePath: "/tmp/relay-project"))
         let workspace = try #require(store.state.workspaces.first)
-        store.addTemporarySession(.shell)
+        store.addTemporarySession(.shellPreset)
         store.addWorkspace(at: URL(filePath: "/tmp/relay-project/../relay-project"))
         #expect(store.state.workspaces.count == 1)
         #expect(store.destination == .workspace(workspace.id))
         #expect(store.temporarySessions.count == 1)
     }
 
-    @Test(arguments: SessionKind.allCases)
-    func addsSessionOnlyToRequestedWorkspace(kind: SessionKind) throws {
+    @Test(arguments: SessionType.presets)
+    func addsSessionOnlyToRequestedWorkspace(kind: SessionType) throws {
         let url = storageURL()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let store = WorkspaceStore(fileURL: url)
@@ -123,7 +123,7 @@ struct RelayTests {
         let restored = WorkspaceStore(fileURL: url)
         let workspace = try #require(restored.state.workspaces.first)
         let session = try #require(workspace.sessions.first)
-        #expect(session.kind == kind)
+        #expect(session.typeID == kind.id)
         #expect(workspace.selectedSessionID == session.id)
         #expect(restored.state.workspaces.last?.sessions.isEmpty == true)
         #expect(restored.destination == .workspace(second.id))
@@ -169,7 +169,7 @@ struct RelayTests {
         store.addWorkspace(at: URL(filePath: "/tmp/first"))
         store.addWorkspace(at: URL(filePath: "/tmp/second"))
         let second = try #require(store.state.workspaces.last)
-        store.addTemporarySession(.shell)
+        store.addTemporarySession(.shellPreset)
         #expect(store.destination == .temporary)
         store.removeWorkspace(second.id)
         #expect(store.destination == .temporary)
@@ -184,4 +184,11 @@ struct RelayTests {
         store.state.workspaces.append(Workspace(name: "Project", path: "/tmp/project"))
         #expect(store.errorMessage != nil)
     }
+}
+
+/// The presets, by id, for tests that need a concrete type.
+extension SessionType {
+    static var claudePreset: SessionType { presets.first { $0.id == "claude" }! }
+    static var copilotPreset: SessionType { presets.first { $0.id == "copilot" }! }
+    static var shellPreset: SessionType { presets.first { $0.id == shellID }! }
 }

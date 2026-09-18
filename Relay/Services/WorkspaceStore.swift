@@ -43,8 +43,8 @@ final class WorkspaceStore {
         }
     }
 
-    func addTemporarySession(_ kind: SessionKind) {
-        let session = Session(kind: kind)
+    func addTemporarySession(_ type: SessionType) {
+        let session = Session(type: type)
         temporarySessions.append(session)
         selectedTemporarySessionID = session.id
         showsTemporarySessions = true
@@ -88,9 +88,9 @@ final class WorkspaceStore {
         return workspace.sessions.contains { terminals.sessions[$0.id]?.requiresCloseConfirmation == true }
     }
 
-    func addSession(_ kind: SessionKind, to workspaceID: UUID) {
+    func addSession(_ type: SessionType, to workspaceID: UUID) {
         guard let index = state.workspaces.firstIndex(where: { $0.id == workspaceID }) else { return }
-        let session = Session(kind: kind)
+        let session = Session(type: type)
         var updated = state
         updated.workspaces[index].sessions.append(session)
         updated.workspaces[index].selectedSessionID = session.id

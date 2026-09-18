@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SessionCard: View {
     let session: Session
+    let type: ResolvedSessionType
     let status: String
     let isSelected: Bool
     let select: () -> Void
@@ -11,8 +12,8 @@ struct SessionCard: View {
         Button(action: select) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
-                    Image(systemName: session.kind.symbol).foregroundStyle(session.kind.color)
-                    Text(session.kind.rawValue).fontWeight(.medium)
+                    Image(systemName: type.symbol).foregroundStyle(type.color)
+                    Text(type.name).fontWeight(.medium)
                     Spacer()
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
@@ -34,8 +35,8 @@ struct SessionCard: View {
         .buttonStyle(.plain).onHover { isHovered = $0 }
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-        .accessibilityInputLabels([Text("\(session.kind.rawValue) session")])
-        .accessibilityLabel("\(session.kind.rawValue) session")
+        .accessibilityInputLabels([Text("\(type.name) session")])
+        .accessibilityLabel("\(type.name) session")
         .accessibilityValue(isSelected ? "Selected, \(status)" : status)
     }
 }
