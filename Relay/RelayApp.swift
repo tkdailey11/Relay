@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import TerminalKit
 
 @main
 struct RelayApp: App {
@@ -13,6 +14,17 @@ struct RelayApp: App {
     @State private var store: WorkspaceStore
 
     init() {
+        // libghostty's failures are the ones that make Relay useless rather than merely
+        // degraded, so TerminalKit's log is joined to Relay's before any terminal can start.
+        TerminalDiagnostics.handler = { level, message in
+            switch level {
+            case .info: RelayLog.info(.terminal, message)
+            case .error: RelayLog.error(.terminal, message)
+            }
+        }
+        let bundle = Bundle.main.infoDictionary ?? [:]
+        RelayLog.info(.app, "Relay \(bundle["CFBundleShortVersionString"] as? String ?? "?") (\(bundle["CFBundleVersion"] as? String ?? "?")) started on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
+
         // Launch arguments travel through a shell, which strips quoting from the path, so the
         // UI test hands its workspace over in the environment instead.
         let environment = ProcessInfo.processInfo.environment

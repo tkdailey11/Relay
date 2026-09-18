@@ -25,7 +25,7 @@ xcodebuild -project Relay.xcodeproj -scheme Relay -configuration Debug build
 xcodebuild -project Relay.xcodeproj -scheme Relay -destination 'platform=macOS' test
 ```
 
-These open the project, build the app, and run both test targets. To run locally, select the `Relay` scheme and My Mac in Xcode, then press Command-R. Use SwiftUI previews for focused UI iteration.
+These open the project, build the app, and run both test targets. To run locally, select the `Relay` scheme and My Mac in Xcode, then press Command-R. Use SwiftUI previews for focused UI iteration. To cut a signed, notarized build for testers, run `Scripts/Release.sh`; `Docs/RELEASING.md` covers the certificates and secrets it needs.
 
 ## Coding Style & Naming Conventions
 

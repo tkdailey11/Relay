@@ -1,4 +1,5 @@
 import Darwin
+import TerminalKit
 import Foundation
 import Observation
 
@@ -56,11 +57,35 @@ final class WorkspaceStore {
             return
         }
         let workspace = Workspace(name: directory.lastPathComponent, path: directory.path)
+        RelayLog.info(.workspace, "Added workspace \(workspace.name) at \(workspace.path)")
         var updated = state
         updated.workspaces.append(workspace)
         updated.selectedWorkspaceID = workspace.id
         state = updated
         showsTemporarySessions = false
+    }
+
+    /// Removing a workspace drops its persisted session metadata, which `reconcileTerminals`
+    /// then turns into closed terminals. The directory itself is never touched.
+    func removeWorkspace(_ id: UUID) {
+        guard let index = state.workspaces.firstIndex(where: { $0.id == id }) else { return }
+        RelayLog.info(.workspace, "Removed workspace \(state.workspaces[index].name) with \(state.workspaces[index].sessions.count) session(s)")
+        var updated = state
+        updated.workspaces.remove(at: index)
+        if state.selectedWorkspaceID == id {
+            // Land on whichever workspace took the removed one's place rather than jumping to
+            // the top of the list. Removing the last one leaves Temporary Sessions selected.
+            let neighbor = updated.workspaces.indices.contains(index)
+                ? updated.workspaces[index] : updated.workspaces.last
+            updated.selectedWorkspaceID = neighbor?.id
+        }
+        state = updated
+    }
+
+    /// True when removing this workspace would stop a process the user may not expect to lose.
+    func hasRunningProcesses(in id: UUID) -> Bool {
+        guard let workspace = state.workspaces.first(where: { $0.id == id }) else { return false }
+        return workspace.sessions.contains { terminals.sessions[$0.id]?.requiresCloseConfirmation == true }
     }
 
     func addSession(_ kind: SessionKind, to workspaceID: UUID) {
@@ -110,9 +135,11 @@ final class WorkspaceStore {
             restored.normalizeSelections()
             state = restored
             if migrated { save() }
+            RelayLog.info(.workspace, "Loaded \(restored.workspaces.count) workspace(s) from \(fileURL.path)\(migrated ? " (migrated from the sandboxed location)" : "")")
         } catch {
             // Never overwrite an unreadable or newer-format store with an empty one.
             canSave = false
+            RelayLog.error(.workspace, "Could not load \(fileURL.path): \(error)")
             errorMessage = "Relay couldn’t load your workspaces. The saved file has been preserved. Changes won’t be saved until the storage problem is resolved and Relay is reopened. \(error.localizedDescription)"
         }
     }
@@ -132,6 +159,7 @@ final class WorkspaceStore {
                                                     withIntermediateDirectories: true)
             try data.write(to: fileURL, options: .atomic)
         } catch {
+            RelayLog.error(.workspace, "Could not save \(fileURL.path): \(error)")
             errorMessage = "Relay couldn’t save your latest changes. \(error.localizedDescription)"
         }
     }

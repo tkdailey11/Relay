@@ -1,8 +1,11 @@
+import AppKit
 import SwiftUI
 
 struct WorkspaceSidebar: View {
     @Bindable var store: WorkspaceStore
     let addWorkspace: () -> Void
+    @State private var workspacePendingRemoval: Workspace?
+    @State private var showsRemoveConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,6 +31,15 @@ struct WorkspaceSidebar: View {
                             Image(systemName: "folder").foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 6).tag(SessionDestination.workspace(workspace.id))
+                        .contextMenu {
+                            Button("Show in Finder", systemImage: "folder") {
+                                NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: workspace.path)])
+                            }
+                            Divider()
+                            Button("Remove Workspace", systemImage: "minus.circle", role: .destructive) {
+                                confirmRemoval(of: workspace)
+                            }
+                        }
                     }
                 }
                 Section {
@@ -37,6 +49,8 @@ struct WorkspaceSidebar: View {
                 }
             }
             .listStyle(.sidebar)
+            // ⌫ removes the selected workspace, matching the sidebars of other Mac apps.
+            .onDeleteCommand(perform: removeSelectedWorkspace)
             Button(action: addWorkspace) {
                 Label("Add Workspace", systemImage: "plus")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -65,5 +79,37 @@ struct WorkspaceSidebar: View {
             }
             .padding(20)
         }
+        .confirmationDialog(removalTitle, isPresented: $showsRemoveConfirmation, titleVisibility: .visible) {
+            Button("Remove Workspace", role: .destructive) {
+                if let workspacePendingRemoval { store.removeWorkspace(workspacePendingRemoval.id) }
+                workspacePendingRemoval = nil
+            }
+            Button("Cancel", role: .cancel) { workspacePendingRemoval = nil }
+        } message: {
+            Text(removalMessage)
+        }
+    }
+
+    private var removalTitle: Text {
+        Text("Remove “\(workspacePendingRemoval?.name ?? "")” from Relay?")
+    }
+
+    private var removalMessage: String {
+        let folder = "The folder stays on your Mac. Relay forgets this workspace and its sessions."
+        guard let workspacePendingRemoval, store.hasRunningProcesses(in: workspacePendingRemoval.id) else {
+            return folder
+        }
+        return "Processes are still running in this workspace’s sessions. Removing it will stop them. \(folder)"
+    }
+
+    private func confirmRemoval(of workspace: Workspace) {
+        workspacePendingRemoval = workspace
+        showsRemoveConfirmation = true
+    }
+
+    private func removeSelectedWorkspace() {
+        guard case .workspace(let id) = store.destination,
+              let workspace = store.state.workspaces.first(where: { $0.id == id }) else { return }
+        confirmRemoval(of: workspace)
     }
 }

@@ -24,6 +24,30 @@ struct TerminalSessionManagerTests {
         #expect(manager.sessions.isEmpty)
     }
 
+    @Test func removingAWorkspaceClosesOnlyItsTerminals() async throws {
+        let store = WorkspaceStore(fileURL: nil)
+        let directory = FileManager.default.temporaryDirectory
+        store.addWorkspace(at: directory)
+        let doomed = try #require(store.state.workspaces.first?.id)
+        store.addWorkspace(at: directory.appending(path: "keep"))
+        let survivor = try #require(store.state.workspaces.last?.id)
+        store.addSession(.shell, to: doomed)
+        store.addSession(.shell, to: survivor)
+        let doomedSession = try #require(store.state.workspaces.first?.sessions.first)
+        let survivingSession = try #require(store.state.workspaces.last?.sessions.first)
+        await store.terminals.prepare(doomedSession, directory: directory.path)
+        await store.terminals.prepare(survivingSession, directory: directory.path)
+        let terminal = try #require(store.terminals.sessions[doomedSession.id])
+        #expect(store.hasRunningProcesses(in: doomed) == false)
+
+        store.removeWorkspace(doomed)
+        #expect(terminal.status == .closed)
+        #expect(store.terminals.sessions[doomedSession.id] == nil)
+        #expect(store.terminals.sessions[survivingSession.id] != nil)
+        #expect(store.hasRunningProcesses(in: doomed) == false)
+        store.terminals.closeAll()
+    }
+
     @Test func deletingMetadataClosesOnlyRemovedTerminals() async throws {
         let store = WorkspaceStore(fileURL: nil)
         store.addWorkspace(at: FileManager.default.temporaryDirectory)

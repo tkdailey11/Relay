@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var isChoosingWorkspace = false
     @State private var isShowingError = false
     @State private var isTerminalExpanded = false
+    @State private var diagnosticsReport: DiagnosticsReportItem?
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var sidebarVisibilityBeforeFocus = NavigationSplitViewVisibility.all
     private var selectedIndex: Int? {
@@ -43,6 +44,10 @@ struct ContentView: View {
         }
         .navigationTitle("")
         .frame(minWidth: 860, minHeight: 580).tint(.accentColor)
+        .focusedSceneValue(\.diagnostics, DiagnosticsAction(show: showDiagnostics))
+        .sheet(item: $diagnosticsReport) { report in
+            DiagnosticsView(report: report.text)
+        }
         .focusedSceneValue(\.terminalFocus, isShowingShell
                            ? TerminalFocusAction(isExpanded: isTerminalExpanded, toggle: toggleTerminalFocus)
                            : nil)
@@ -74,6 +79,11 @@ struct ContentView: View {
 
     private var isShowingShell: Bool {
         store.destination == .temporary || selectedIndex != nil
+    }
+
+    // Built on demand: the report is a snapshot of the moment the user asked for it.
+    private func showDiagnostics() {
+        diagnosticsReport = DiagnosticsReportItem(text: DiagnosticsReport.make(store: store))
     }
 
     private func showWorkspacePicker() {

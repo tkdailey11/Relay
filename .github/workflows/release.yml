@@ -1,0 +1,127 @@
+name: Release
+
+# Cutting a release is the same command CI runs and a laptop runs: Scripts/Release.sh. This
+# workflow only supplies credentials and a cached libghostty.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: "Create the GitHub release as a draft"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Scripts/Release.sh derives the build number from the commit count.
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          # The image's default is already Xcode 26; pick the newest explicitly so an image
+          # refresh that adds a beta alongside it cannot change the SDK under us.
+          sudo xcode-select -switch "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      # libghostty is pinned by version and checksum in BuildGhostty.sh, so its output is
+      # reproducible and safe to reuse until that script changes.
+      - name: Cache libghostty
+        id: ghostty
+        uses: actions/cache@v4
+        with:
+          path: |
+            Packages/TerminalKit/Vendor
+            Packages/TerminalKit/Sources/TerminalKit/Resources/ghostty
+            Packages/TerminalKit/Sources/TerminalKit/Resources/terminfo
+          key: libghostty-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Scripts/BuildGhostty.sh') }}
+
+      - name: Install Zig 0.14.1
+        if: steps.ghostty.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          url=https://ziglang.org/download/0.14.1/zig-aarch64-macos-0.14.1.tar.xz
+          expected=39f3dc5e79c22088ce878edc821dedb4ca5a1cd9f5ef915e9b3cc3053e8faefa
+          curl --fail --location --retry 3 "$url" -o zig.tar.xz
+          printf '%s  %s\n' "$expected" zig.tar.xz | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/zig"
+          tar -xJf zig.tar.xz -C "$RUNNER_TEMP/zig" --strip-components=1
+          echo "ZIG=$RUNNER_TEMP/zig/zig" >> "$GITHUB_ENV"
+
+      - name: Build libghostty
+        if: steps.ghostty.outputs.cache-hit != 'true'
+        run: Scripts/BuildGhostty.sh
+
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/relay-signing.keychain-db"
+          certificate="$RUNNER_TEMP/certificate.p12"
+          printf '%s' "$CERTIFICATE_P12" | base64 --decode > "$certificate"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # Without this, codesign blocks on a UI prompt that no one can answer.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$keychain" > /dev/null
+          security list-keychain -d user -s "$keychain" login.keychain-db
+          rm -f "$certificate"
+          security find-identity -v -p codesigning "$keychain"
+
+      - name: Build, notarize and staple
+        env:
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+          AC_API_KEY_BASE64: ${{ secrets.AC_API_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          export AC_API_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$AC_API_KEY_BASE64" | base64 --decode > "$AC_API_KEY_PATH"
+          trap 'rm -f "$AC_API_KEY_PATH"' EXIT
+          Scripts/Release.sh
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          build="$(git rev-list --count HEAD)"
+          zip=".build/release/Relay-$version.zip"
+          args=(--title "Relay $version" --notes "Relay $version (build $build), Apple Silicon, notarized.
+
+          Requires macOS 26 or newer.")
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # gh creates the tag itself from the checked-out commit.
+            tag="v$version-build.$build"
+            if [[ "${{ inputs.draft }}" == "true" ]]; then
+              args+=(--draft)
+            fi
+          else
+            tag="$GITHUB_REF_NAME"
+            # A tag that disagrees with VERSION would ship a build labelled two different ways.
+            if [[ "$tag" != "v$version" ]]; then
+              echo "Tag $tag does not match VERSION ($version). Update VERSION and re-tag." >&2
+              exit 1
+            fi
+          fi
+          gh release create "$tag" "$zip" "${args[@]}"
+
+      - name: Remove the signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/relay-signing.keychain-db" || true

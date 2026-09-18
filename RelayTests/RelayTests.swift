@@ -134,6 +134,48 @@ struct RelayTests {
         #expect(store.state == snapshot)
     }
 
+    @Test func removingWorkspaceSelectsItsNeighborAndPersists() throws {
+        let url = storageURL()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = WorkspaceStore(fileURL: url)
+        for name in ["first", "second", "third"] { store.addWorkspace(at: URL(filePath: "/tmp/\(name)")) }
+        let (first, second, third) = (store.state.workspaces[0], store.state.workspaces[1], store.state.workspaces[2])
+
+        // Removing an unselected workspace leaves the selection where it was.
+        store.destination = .workspace(third.id)
+        store.removeWorkspace(first.id)
+        #expect(store.state.workspaces.map(\.id) == [second.id, third.id])
+        #expect(store.destination == .workspace(third.id))
+
+        // Removing the selected one falls to the workspace that took its index, else the last.
+        store.destination = .workspace(second.id)
+        store.removeWorkspace(second.id)
+        #expect(store.destination == .workspace(third.id))
+        #expect(WorkspaceStore(fileURL: url).state == store.state)
+
+        store.removeWorkspace(third.id)
+        #expect(store.state.workspaces.isEmpty)
+        #expect(store.destination == .temporary)
+        #expect(WorkspaceStore(fileURL: url).state.workspaces.isEmpty)
+
+        // An unknown id changes nothing.
+        let snapshot = store.state
+        store.removeWorkspace(UUID())
+        #expect(store.state == snapshot)
+    }
+
+    @Test func removingAWorkspaceWhileViewingTemporarySessionsStaysThere() throws {
+        let store = WorkspaceStore(fileURL: nil)
+        store.addWorkspace(at: URL(filePath: "/tmp/first"))
+        store.addWorkspace(at: URL(filePath: "/tmp/second"))
+        let second = try #require(store.state.workspaces.last)
+        store.addTemporarySession(.shell)
+        #expect(store.destination == .temporary)
+        store.removeWorkspace(second.id)
+        #expect(store.destination == .temporary)
+        #expect(store.temporarySessions.count == 1)
+    }
+
     @Test func reportsWriteFailures() throws {
         let url = storageURL()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }

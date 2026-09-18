@@ -18,12 +18,15 @@ enum SessionLauncher {
             guard let name = words.first else { continue }
             if let executable = await LoginShellPath.shared.locate(name) {
                 words[0] = quoted(executable.path)
-                return words.joined(separator: " ")
+                let command = words.joined(separator: " ")
+                RelayLog.info(.session, "Resolved \(kind.rawValue) to \(command)")
+                return command
             }
         }
-        throw LaunchError.executableNotFound(kind: kind, names: candidates.compactMap {
-            $0.split(separator: " ").first.map(String.init)
-        })
+        let names = candidates.compactMap { $0.split(separator: " ").first.map(String.init) }
+        let searchPath = await LoginShellPath.shared.describeSearchPath()
+        RelayLog.error(.session, "Could not find \(names.joined(separator: " or ")) for \(kind.rawValue) on PATH: \(searchPath)")
+        throw LaunchError.executableNotFound(kind: kind, names: names)
     }
 
     /// The CLIs move faster than Relay ships, so the command line is overridable without a new
@@ -83,6 +86,12 @@ private actor LoginShellPath {
         return nil
     }
 
+    /// Included in diagnostics: "the CLI is installed" and "the CLI is on the PATH Relay can
+    /// see" are different claims, and only the second one matters here.
+    func describeSearchPath() async -> String {
+        await searchPath().joined(separator: ":")
+    }
+
     private func searchPath() async -> [String] {
         if let directories { return directories }
         var resolved = await Self.loginShellPath()
@@ -120,13 +129,19 @@ private actor LoginShellPath {
             process.standardOutput = pipe
             process.standardError = FileHandle.nullDevice
             process.standardInput = FileHandle.nullDevice
-            guard (try? process.run()) != nil else { return [] }
+            guard (try? process.run()) != nil else {
+                RelayLog.error(.session, "Could not run \(shell) to read the login shell PATH")
+                return []
+            }
             let deadline = DispatchWorkItem { if process.isRunning { process.terminate() } }
             DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deadline)
             let data = (try? pipe.fileHandleForReading.readToEnd()) ?? Data()
             process.waitUntilExit()
             deadline.cancel()
-            guard process.terminationStatus == 0 else { return [] }
+            guard process.terminationStatus == 0 else {
+                RelayLog.error(.session, "\(shell) -lc exited with status \(process.terminationStatus) while reading PATH; falling back to conventional directories")
+                return []
+            }
             return String(decoding: data, as: UTF8.self)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .split(separator: ":").map(String.init)

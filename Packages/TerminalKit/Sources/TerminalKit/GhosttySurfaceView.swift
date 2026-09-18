@@ -70,9 +70,11 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
             guard surface != nil else { throw TerminalError.initialization("libghostty could not create a shell surface.") }
             updateAppearance()
             resizeSurface()
+            TerminalDiagnostics.info("Surface created for \(command ?? "the login shell") in \(workingDirectory.path)")
             // AppKit attachment happens during SwiftUI reconciliation.
             DispatchQueue.main.async { [weak self] in self?.session?.updateStatus(.running) }
         } catch {
+            TerminalDiagnostics.error("Surface creation failed for \(command ?? "the login shell") in \(workingDirectory.path): \(error.localizedDescription)")
             DispatchQueue.main.async { [weak self] in
                 self?.session?.updateStatus(.failed(error.localizedDescription))
             }
@@ -90,6 +92,7 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
     }
 
     func processExited() {
+        TerminalDiagnostics.info("Process exited for \(command ?? "the login shell")")
         // Never destroy a surface synchronously inside one of its C callbacks.
         DispatchQueue.main.async { [weak self] in self?.session?.updateStatus(.exited) }
     }

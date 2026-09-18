@@ -31,8 +31,10 @@ final class TerminalSessionManager {
             guard preparing.contains(session.id) else { return }
             sessions[session.id] = try TerminalSession(workingDirectory: URL(filePath: directory),
                                                        command: command)
+            RelayLog.info(.terminal, "Started \(session.kind.rawValue) in \(directory)")
         } catch {
             guard preparing.contains(session.id) else { return }
+            RelayLog.error(.terminal, "Could not start \(session.kind.rawValue) in \(directory): \(error)")
             errors[session.id] = message(for: error)
         }
     }
@@ -46,7 +48,10 @@ final class TerminalSessionManager {
 
     func close(_ id: Session.ID) {
         preparing.remove(id)
-        sessions.removeValue(forKey: id)?.close()
+        if let terminal = sessions.removeValue(forKey: id) {
+            RelayLog.info(.terminal, "Closed a terminal that was \(terminal.status.label.lowercased())")
+            terminal.close()
+        }
         errors.removeValue(forKey: id)
     }
 
