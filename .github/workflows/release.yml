@@ -31,7 +31,8 @@ jobs:
         run: |
           set -euo pipefail
           # The image's default is already Xcode 26; pick the newest explicitly so an image
-          # refresh that adds a beta alongside it cannot change the SDK under us.
+          # refresh that adds a beta alongside it cannot change the SDK under us. The libghostty
+          # step ignores this and picks its own older SDK; see Docs/RELEASING.md.
           sudo xcode-select -switch "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
           xcodebuild -version
 

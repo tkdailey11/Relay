@@ -79,6 +79,17 @@ Apple Silicon only. To ship a universal app, build Ghostty with `-Dxcframework-t
 and drop the `ARCHS=arm64` override in `Scripts/Release.sh`. macOS 26 still runs on some Intel
 Macs, so this matters if any tester is on one.
 
+## Toolchain
+
+Relay itself builds with the newest installed Xcode, but libghostty does not. Zig 0.14.1, which
+Ghostty 1.2.3 pins, matches SDK stub targets literally, and the Xcode 26.4 SDK renamed its
+`arm64-macos` entries to `arm64e-macos`; linking against it fails with every libSystem symbol
+undefined ([ziglang/zig#31658](https://codeberg.org/ziglang/zig/issues/31658), fixed only in Zig
+0.16). `Scripts/BuildGhostty.sh` therefore picks the newest Xcode whose stub still advertises the
+host architecture — Xcode 26.3 or older — and exports it as `DEVELOPER_DIR` for that step alone.
+Set `DEVELOPER_DIR` yourself to override the choice. Once Ghostty moves to Zig 0.16 or newer, the
+whole block can go.
+
 ## Entitlements
 
 `Relay/Relay.entitlements` declares the TCC keys Ghostty declares, for the same reason: Relay
