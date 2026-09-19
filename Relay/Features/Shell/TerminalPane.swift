@@ -43,6 +43,9 @@ struct TerminalPane: View {
                     Image(systemName: isExpanded
                           ? "arrow.down.right.and.arrow.up.left"
                           : "arrow.up.left.and.arrow.down.right")
+                        // Opt out of the header's .caption so the way back stays easy to hit.
+                        .font(.title3)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .contentTransition(.symbolEffect(.replace))
