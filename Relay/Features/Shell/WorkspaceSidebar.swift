@@ -22,25 +22,9 @@ struct WorkspaceSidebar: View {
             List(selection: $store.destination) {
                 Section("Workspaces") {
                     ForEach(store.state.workspaces) { workspace in
-                        Label {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(workspace.name).fontWeight(.medium)
-                                Text(workspace.path).font(.caption).foregroundStyle(.secondary)
-                                    .lineLimit(1).truncationMode(.middle)
-                            }
-                        } icon: {
-                            Image(systemName: "folder").foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 6).tag(SessionDestination.workspace(workspace.id))
-                        .contextMenu {
-                            Button("Show in Finder", systemImage: "folder") {
-                                NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: workspace.path)])
-                            }
-                            Divider()
-                            Button("Remove Workspace", systemImage: "minus.circle", role: .destructive) {
-                                confirmRemoval(of: workspace)
-                            }
-                        }
+                        WorkspaceRow(workspace: workspace) { workspaceMenu(workspace) }
+                            .tag(SessionDestination.workspace(workspace.id))
+                            .contextMenu { workspaceMenu(workspace) }
                     }
                 }
                 Section {
@@ -69,6 +53,17 @@ struct WorkspaceSidebar: View {
             Button("Cancel", role: .cancel) { workspacePendingRemoval = nil }
         } message: {
             Text(removalMessage)
+        }
+    }
+
+    /// Shared by the row's options button and its right-click menu so the two never drift.
+    @ViewBuilder private func workspaceMenu(_ workspace: Workspace) -> some View {
+        Button("Show in Finder", systemImage: "folder") {
+            NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: workspace.path)])
+        }
+        Divider()
+        Button("Remove Workspace", systemImage: "minus.circle", role: .destructive) {
+            confirmRemoval(of: workspace)
         }
     }
 
@@ -119,5 +114,32 @@ struct WorkspaceSidebar: View {
         guard case .workspace(let id) = store.destination,
               let workspace = store.state.workspaces.first(where: { $0.id == id }) else { return }
         confirmRemoval(of: workspace)
+    }
+}
+
+private struct WorkspaceRow<MenuContent: View>: View {
+    let workspace: Workspace
+    @ViewBuilder let menu: () -> MenuContent
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(workspace.name).fontWeight(.medium)
+                    Text(workspace.path).font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+            } icon: {
+                Image(systemName: "folder").foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            OptionsMenuButton(isHovered: isHovered,
+                              accessibilityTitle: "\(workspace.name) workspace options",
+                              menu: menu)
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
     }
 }

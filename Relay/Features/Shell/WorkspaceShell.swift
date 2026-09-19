@@ -76,19 +76,22 @@ struct WorkspaceShell: View {
                 ForEach(sessions) { session in
                     SessionCard(session: session, type: types.resolve(session),
                                 status: terminals.status(for: session),
-                                isSelected: session.id == selectedSessionID) {
-                        selectSession(session)
-                    }
-                    .contextMenu {
-                        Button("Close Session", systemImage: "xmark", role: .destructive) {
-                            closeSession(session)
-                        }
-                    }
+                                isSelected: session.id == selectedSessionID,
+                                select: { selectSession(session) },
+                                menu: { sessionMenu(session) })
+                        .contextMenu { sessionMenu(session) }
                 }
             }.padding(3)
         }
         .fixedSize(horizontal: false, vertical: true)
         .scrollIndicators(.hidden)
+    }
+
+    /// Shared by the card's options button and its right-click menu so the two never drift.
+    @ViewBuilder private func sessionMenu(_ session: Session) -> some View {
+        Button("Close Session", systemImage: "xmark", role: .destructive) {
+            closeSession(session)
+        }
     }
 
     private var activeTerminal: ActiveTerminalAction? {

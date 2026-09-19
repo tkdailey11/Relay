@@ -1,11 +1,12 @@
 import SwiftUI
 
-struct SessionCard: View {
+struct SessionCard<MenuContent: View>: View {
     let session: Session
     let type: ResolvedSessionType
     let status: String
     let isSelected: Bool
     let select: () -> Void
+    @ViewBuilder let menu: () -> MenuContent
     @State private var isHovered = false
 
     var body: some View {
@@ -19,6 +20,9 @@ struct SessionCard: View {
                         Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
                     }
                 }
+                // Leaves room for the options button, which is overlaid outside the card's
+                // button so its clicks are not swallowed by the selection button.
+                .padding(.trailing, 22)
                 HStack(spacing: 6) {
                     Circle().fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.5)).frame(width: 5, height: 5)
                     Text(isSelected ? "Selected · \(status)" : status).font(.caption).foregroundStyle(.secondary)
@@ -38,5 +42,13 @@ struct SessionCard: View {
         .accessibilityInputLabels([Text("\(type.name) session")])
         .accessibilityLabel("\(type.name) session")
         .accessibilityValue(isSelected ? "Selected, \(status)" : status)
+        .overlay(alignment: .topTrailing) { optionsButton }
+    }
+
+    private var optionsButton: some View {
+        OptionsMenuButton(isHovered: isHovered,
+                          accessibilityTitle: "\(type.name) session options",
+                          menu: menu)
+            .padding(.top, 12).padding(.trailing, 10)
     }
 }
