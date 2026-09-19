@@ -29,8 +29,7 @@ struct SessionCard<MenuContent: View>: View {
                 }
             }
             .padding(16).frame(minWidth: 184, alignment: .leading)
-            .background(isSelected ? Color.accentColor.opacity(0.09) : Color.primary.opacity(isHovered ? 0.06 : 0.025),
-                        in: RoundedRectangle(cornerRadius: 14))
+            .glassEffect(glass, in: RoundedRectangle(cornerRadius: 14))
             .overlay {
                 RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.08))
@@ -43,6 +42,13 @@ struct SessionCard<MenuContent: View>: View {
         .accessibilityLabel("\(type.name) session")
         .accessibilityValue(isSelected ? "Selected, \(status)" : status)
         .overlay(alignment: .topTrailing) { optionsButton }
+    }
+
+    /// Selection is carried by a tint rather than a heavier material, so a row of cards
+    /// stays calm and the selected one still reads at a glance.
+    private var glass: Glass {
+        isSelected ? .regular.tint(Color.accentColor.opacity(0.25)).interactive()
+                   : .regular.interactive()
     }
 
     private var optionsButton: some View {

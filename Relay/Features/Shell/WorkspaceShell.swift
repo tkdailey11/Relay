@@ -43,7 +43,7 @@ struct WorkspaceShell: View {
                 }.font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding(isTerminalExpanded ? 0 : 28).background(.background)
+        .padding(isTerminalExpanded ? 0 : 28)
         .confirmationDialog("Close this session?", isPresented: $showsCloseConfirmation, titleVisibility: .visible) {
             Button("Close Session", role: .destructive) {
                 if let sessionPendingClose { finishClosing(sessionPendingClose) }
@@ -72,16 +72,20 @@ struct WorkspaceShell: View {
 
     private var sessionCards: some View {
         ScrollView(.horizontal) {
-            LazyHStack(spacing: 12) {
-                ForEach(sessions) { session in
-                    SessionCard(session: session, type: types.resolve(session),
-                                status: terminals.status(for: session),
-                                isSelected: session.id == selectedSessionID,
-                                select: { selectSession(session) },
-                                menu: { sessionMenu(session) })
-                        .contextMenu { sessionMenu(session) }
-                }
-            }.padding(3)
+            // One container so neighbouring cards blend into each other rather than each
+            // stacking its own blur.
+            GlassEffectContainer(spacing: 12) {
+                LazyHStack(spacing: 12) {
+                    ForEach(sessions) { session in
+                        SessionCard(session: session, type: types.resolve(session),
+                                    status: terminals.status(for: session),
+                                    isSelected: session.id == selectedSessionID,
+                                    select: { selectSession(session) },
+                                    menu: { sessionMenu(session) })
+                            .contextMenu { sessionMenu(session) }
+                    }
+                }.padding(3)
+            }
         }
         .fixedSize(horizontal: false, vertical: true)
         .scrollIndicators(.hidden)

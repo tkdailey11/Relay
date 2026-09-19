@@ -34,6 +34,9 @@ struct WorkspaceSidebar: View {
                 }
             }
             .listStyle(.sidebar)
+            // Hidden so the column's own sidebar material runs the full height instead of the
+            // list painting its own strip between the header and the launchers.
+            .scrollContentBackground(.hidden)
             // ⌫ removes the selected workspace, matching the sidebars of other Mac apps.
             .onDeleteCommand(perform: removeSelectedWorkspace)
             Button(action: addWorkspace) {
@@ -76,7 +79,8 @@ struct WorkspaceSidebar: View {
         let launchers = types.sidebarLaunchers
         return VStack(alignment: .leading, spacing: 12) {
             Text("TEMPORARY SESSION").font(.caption).bold().foregroundStyle(.secondary)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 8)], spacing: 8) {
+            GlassEffectContainer(spacing: 8) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 8)], spacing: 8) {
                 ForEach(launchers.pinned) { type in
                     Button { store.addTemporarySession(type) } label: {
                         launcherTile(symbol: type.symbol, color: type.color.color, title: type.name)
@@ -101,6 +105,7 @@ struct WorkspaceSidebar: View {
                     .menuIndicator(.hidden)
                     .accessibilityLabel("More temporary session types")
                     .help("Reorder session types in Settings to choose which appear here")
+                    }
                 }
             }
         }
@@ -115,7 +120,7 @@ struct WorkspaceSidebar: View {
             Text(title).font(.caption).lineLimit(1)
         }
         .frame(maxWidth: .infinity).padding(.vertical, 12)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var removalTitle: Text {

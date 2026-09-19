@@ -24,6 +24,9 @@ struct ContentView: View {
         }
         .navigationTitle("")
         .frame(minWidth: 860, minHeight: 580).tint(.accentColor)
+        // The window itself is the translucent surface; the chrome layers materials on top
+        // of it and the terminal pane stays opaque over both.
+        .containerBackground(.thinMaterial, for: .window)
         .focusedSceneValue(\.diagnostics, DiagnosticsAction(show: showDiagnostics))
         .sheet(item: $diagnosticsReport) { report in
             DiagnosticsView(report: report.text)
