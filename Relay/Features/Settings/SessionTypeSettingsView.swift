@@ -65,7 +65,14 @@ struct SessionTypeSettingsView: View {
                 .disabled(selection == nil)
                 Button("Restore Presets") { store.restorePresets() }
             }
-            .padding(12)
+            .padding(.horizontal, 12).padding(.top, 12)
+            // The sidebar only has room for a few launchers, so say what decides which ones
+            // rather than leaving a user to discover that dragging a row matters.
+            Text("Enabled types appear in every New Session menu. Drag to reorder: the first few also get a button in the sidebar, and the rest move into its menu.")
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12).padding(.bottom, 12)
         }
         .sheet(item: $editing) { target in
             SessionTypeEditor(type: target.type, isNew: target.isNew) { edited in

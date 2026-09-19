@@ -62,6 +62,21 @@ final class SessionTypeStore {
         types.filter(\.isEnabled)
     }
 
+    /// Six fills two rows of sidebar launchers at its widest and three at its narrowest.
+    static let launcherLimit = 6
+
+    /// The sidebar's launcher grid has no scroll of its own below the workspace list, so an
+    /// unbounded one would squeeze that list away once a user added enough types. Split the
+    /// enabled list instead: `pinned` gets a button each and `overflow` goes into a menu, with
+    /// the last slot reserved for that menu whenever it is needed. The order is the user's,
+    /// since Settings reorders the list by drag.
+    var sidebarLaunchers: (pinned: [SessionType], overflow: [SessionType]) {
+        let enabled = enabled
+        guard enabled.count > Self.launcherLimit else { return (enabled, []) }
+        let pinnedCount = Self.launcherLimit - 1
+        return (Array(enabled.prefix(pinnedCount)), Array(enabled.dropFirst(pinnedCount)))
+    }
+
     /// The type ⌘N and the empty state start. Shell when it is enabled, else the first enabled
     /// type, so those controls always do something.
     var defaultType: SessionType {

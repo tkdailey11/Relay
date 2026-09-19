@@ -89,6 +89,56 @@ struct SessionTypeStoreTests {
         #expect(store.resolve(session).name == "Claude Code")
     }
 
+    /// Four presets fit the sidebar grid, so nothing is hidden on a fresh install.
+    @Test func everyEnabledTypeGetsALauncherWhenTheyFit() {
+        let store = SessionTypeStore(defaults: defaults())
+        let launchers = store.sidebarLaunchers
+        #expect(launchers.pinned.map(\.id) == ["claude", "copilot", "codex", "shell"])
+        #expect(launchers.overflow.isEmpty)
+    }
+
+    /// Exactly at the limit still fills the grid: the overflow menu would cost a slot to show
+    /// a list of nothing.
+    @Test func theLimitItselfDoesNotTriggerAnOverflowMenu() {
+        let store = SessionTypeStore(defaults: defaults())
+        addTypes(to: store, count: SessionTypeStore.launcherLimit - store.enabled.count)
+        #expect(store.enabled.count == SessionTypeStore.launcherLimit)
+        #expect(store.sidebarLaunchers.pinned.count == SessionTypeStore.launcherLimit)
+        #expect(store.sidebarLaunchers.overflow.isEmpty)
+    }
+
+    /// The sidebar has no scroll of its own, so a long list has to stay a fixed height rather
+    /// than squeezing the workspace list away.
+    @Test func extraTypesMoveIntoTheOverflowMenuInOrder() {
+        let store = SessionTypeStore(defaults: defaults())
+        addTypes(to: store, count: 16)
+        let launchers = store.sidebarLaunchers
+        #expect(store.enabled.count == 20)
+        #expect(launchers.pinned.count == SessionTypeStore.launcherLimit - 1)
+        #expect(launchers.overflow.count == 20 - (SessionTypeStore.launcherLimit - 1))
+        // Nothing is dropped, and the user's Settings order decides which side a type lands on.
+        #expect(launchers.pinned.map(\.id) + launchers.overflow.map(\.id) == store.enabled.map(\.id))
+    }
+
+    /// Disabling a type is the direct way to promote another into the grid.
+    @Test func disabledTypesDoNotConsumeLauncherSlots() {
+        let store = SessionTypeStore(defaults: defaults())
+        addTypes(to: store, count: 4)
+        var claude = try! #require(store.type(id: "claude"))
+        claude.isEnabled = false
+        store.update(claude)
+        #expect(store.enabled.count == 7)
+        #expect(store.sidebarLaunchers.pinned.contains { $0.id == "claude" } == false)
+        #expect(store.sidebarLaunchers.overflow.contains { $0.id == "claude" } == false)
+    }
+
+    private func addTypes(to store: SessionTypeStore, count: Int) {
+        for index in 0..<count {
+            store.add(SessionType(id: "custom-\(index)", name: "Custom \(index)",
+                                  command: "custom\(index)", symbol: "bolt", color: .blue))
+        }
+    }
+
     @Test func theDefaultTypeFallsBackWhenShellIsDisabled() {
         let store = SessionTypeStore(defaults: defaults())
         var shell = try! #require(store.type(id: SessionType.shellID))

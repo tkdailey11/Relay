@@ -68,29 +68,54 @@ struct WorkspaceSidebar: View {
     }
 
     /// A grid rather than a row: the session type list is user editable, so this has to hold
-    /// however many are enabled without pushing the sidebar wider.
+    /// however many are enabled without pushing the sidebar wider. It is also capped, because
+    /// the sidebar has no scroll of its own below the workspace list — an unbounded grid would
+    /// squeeze that list away once a user added enough types. The cap keeps the footer a fixed
+    /// two or three rows and moves the rest into a menu, so nothing becomes unreachable.
     private var temporarySessionLaunchers: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let launchers = types.sidebarLaunchers
+        return VStack(alignment: .leading, spacing: 12) {
             Text("TEMPORARY SESSION").font(.caption).bold().foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 8)], spacing: 8) {
-                ForEach(types.enabled) { type in
+                ForEach(launchers.pinned) { type in
                     Button { store.addTemporarySession(type) } label: {
-                        VStack(spacing: 8) {
-                            Image(systemName: type.symbol).font(.title3).foregroundStyle(type.color.color)
-                                .accessibilityHidden(true)
-                            Text(type.name).font(.caption).lineLimit(1)
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                        launcherTile(symbol: type.symbol, color: type.color.color, title: type.name)
                     }
                     .accessibilityLabel("New temporary \(type.name) session")
                     .accessibilityInputLabels([Text(type.name)])
                     .buttonStyle(.plain)
                     .help("New temporary \(type.name) session in your home directory")
                 }
+                if !launchers.overflow.isEmpty {
+                    Menu {
+                        ForEach(launchers.overflow) { type in
+                            Button(type.name, systemImage: type.symbol) {
+                                store.addTemporarySession(type)
+                            }
+                        }
+                    } label: {
+                        launcherTile(symbol: "ellipsis", color: .secondary,
+                                     title: "\(launchers.overflow.count) more")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .accessibilityLabel("More temporary session types")
+                    .help("Reorder session types in Settings to choose which appear here")
+                }
             }
         }
         .padding(20)
+    }
+
+    /// Shared so the overflow menu is the same shape and weight as the launchers beside it.
+    private func launcherTile(symbol: String, color: Color, title: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol).font(.title3).foregroundStyle(color)
+                .accessibilityHidden(true)
+            Text(title).font(.caption).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 12)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var removalTitle: Text {
