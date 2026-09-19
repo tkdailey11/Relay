@@ -18,6 +18,8 @@ permissions:
 jobs:
   release:
     runs-on: macos-26
+    # The signing certificate and notarization key live in the Prod environment's secrets.
+    environment: Prod
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
