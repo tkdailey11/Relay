@@ -91,6 +91,13 @@ that succeeds — Xcode 26.3 or older — as `DEVELOPER_DIR` for that step alone
 yourself to override the choice; the script still probes it and fails loudly if it cannot link.
 Once Ghostty moves to Zig 0.16 or newer, the whole block can go.
 
+Ghostty pulls 35 packages, and Zig's HTTP client intermittently drops a pooled connection
+mid-fetch ([ziglang/zig#21316](https://github.com/ziglang/zig/issues/21316)), usually as
+`unable to discover remote git server capabilities: EndOfStream`. `Scripts/BuildGhostty.sh`
+retries the build up to three times for that class of failure and fails immediately on a
+compile error. If all three attempts fail, the dependency host is genuinely down; re-run
+the job later rather than changing the pin.
+
 ## Entitlements
 
 `Relay/Relay.entitlements` declares the TCC keys Ghostty declares, for the same reason: Relay

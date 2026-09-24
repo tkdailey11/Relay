@@ -63,9 +63,32 @@ if [[ ! -d "$source_root" ]]; then
     tar -xzf "$archive" -C "$source_root" --strip-components=1
 fi
 cd "$source_root"
-"$zig_bin" build -Doptimize=ReleaseFast -Demit-macos-app=false \
-    -Dxcframework-target=native -Demit-docs=false -Demit-themes=false -Di18n=false \
-    --global-cache-dir "$cache_dir"
+
+# Ghostty pulls 35 packages, and Zig's HTTP client intermittently reuses a pooled connection
+# the server has already closed, which surfaces as a fetch failing mid-handshake — most often
+# "unable to discover remote git server capabilities: EndOfStream" (ziglang/zig#21316, still
+# open). Packages that did land stay in the cache, so a retry resumes instead of starting over.
+# Only fetch failures are retried; a compile error is deterministic and should fail at once.
+build_log="$build_root/build.log"
+attempt=1
+attempts=3
+while true; do
+    if "$zig_bin" build -Doptimize=ReleaseFast -Demit-macos-app=false \
+        -Dxcframework-target=native -Demit-docs=false -Demit-themes=false -Di18n=false \
+        --global-cache-dir "$cache_dir" 2>&1 | tee "$build_log"; then
+        break
+    fi
+    if ! grep -qE 'unable to (discover remote git server capabilities|fetch)|ConnectionResetByPeer|EndOfStream|TemporaryNameServerFailure|TlsInitializationFailed' "$build_log"; then
+        exit 1
+    fi
+    if (( attempt >= attempts )); then
+        echo "Fetching Ghostty's dependencies still failed after $attempts attempts." >&2
+        exit 1
+    fi
+    echo "Attempt $attempt/$attempts failed while fetching dependencies; retrying in $(( attempt * 15 ))s."
+    sleep $(( attempt * 15 ))
+    attempt=$(( attempt + 1 ))
+done
 package="$repo_root/Packages/TerminalKit"
 mkdir -p "$package/Vendor" "$package/Sources/TerminalKit/Resources"
 ditto macos/GhosttyKit.xcframework "$package/Vendor/GhosttyKit.xcframework"
