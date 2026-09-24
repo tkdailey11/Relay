@@ -85,10 +85,11 @@ Relay itself builds with the newest installed Xcode, but libghostty does not. Zi
 Ghostty 1.2.3 pins, matches SDK stub targets literally, and the Xcode 26.4 SDK renamed its
 `arm64-macos` entries to `arm64e-macos`; linking against it fails with every libSystem symbol
 undefined ([ziglang/zig#31658](https://codeberg.org/ziglang/zig/issues/31658), fixed only in Zig
-0.16). `Scripts/BuildGhostty.sh` therefore picks the newest Xcode whose stub still advertises the
-host architecture — Xcode 26.3 or older — and exports it as `DEVELOPER_DIR` for that step alone.
-Set `DEVELOPER_DIR` yourself to override the choice. Once Ghostty moves to Zig 0.16 or newer, the
-whole block can go.
+0.16). The stubs do not reliably advertise this, so `Scripts/BuildGhostty.sh` asks Zig instead:
+it links a trivial program against each installed Xcode, newest first, and exports the first one
+that succeeds — Xcode 26.3 or older — as `DEVELOPER_DIR` for that step alone. Set `DEVELOPER_DIR`
+yourself to override the choice; the script still probes it and fails loudly if it cannot link.
+Once Ghostty moves to Zig 0.16 or newer, the whole block can go.
 
 ## Entitlements
 

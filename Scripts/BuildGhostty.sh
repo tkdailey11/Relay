@@ -7,33 +7,51 @@ if [[ "$("$zig_bin" version)" != "0.14.1" ]]; then
     echo 'Ghostty 1.2.3 requires Zig 0.14.1. Set ZIG to that compiler’s path.' >&2
     exit 1
 fi
-# Zig 0.14.1 matches SDK stub targets literally, and the Xcode 26.4 SDK renamed its
-# arm64-macos entries to arm64e-macos, so linking against it fails with every libSystem
-# symbol undefined (ziglang/zig#31658, fixed only in Zig 0.16). Build against the newest
-# toolchain whose stub still advertises this machine's architecture.
-arch="$(uname -m)"
-supports_zig_linking() {
-    local sdk
-    sdk="$(DEVELOPER_DIR="$1" SDKROOT= xcrun --sdk macosx --show-sdk-path 2>/dev/null)" || return 1
-    [[ -n "$sdk" ]] && grep -q "$arch-macos" "$sdk/usr/lib/libSystem.tbd" 2>/dev/null
-}
-if [[ -z "${DEVELOPER_DIR:-}" ]]; then
-    for candidate in $(ls -d /Applications/Xcode*.app 2>/dev/null | sort -Vr); do
-        if supports_zig_linking "$candidate/Contents/Developer"; then
-            export DEVELOPER_DIR="$candidate/Contents/Developer"
-            break
-        fi
-    done
-fi
-if ! supports_zig_linking "${DEVELOPER_DIR:-$(xcode-select -p)}"; then
-    echo 'No installed Xcode ships an SDK that Zig 0.14.1 can link against; Xcode 26.3 or older is required for this step.' >&2
-    exit 1
-fi
-export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-echo "Building libghostty against $SDKROOT"
-
 build_root="${RELAY_GHOSTTY_BUILD_DIR:-$repo_root/.build/ghostty}"
 mkdir -p "$build_root"
+cache_dir="$build_root/zig-cache"
+
+# Zig 0.14.1 matches SDK stub targets literally, and the Xcode 26.4 SDK renamed the
+# arm64-macos entries that carry libSystem's symbols to arm64e-macos, so linking against it
+# fails with every libc symbol undefined (ziglang/zig#31658, fixed only in Zig 0.16). Nothing
+# in the stubs reliably advertises this, so ask Zig directly: link a trivial program, which
+# pulls in libSystem exactly as Ghostty's build does, and keep the newest toolchain that works.
+# An SDKROOT inherited from the environment would outrank the toolchain chosen here.
+unset SDKROOT
+probe_root="$build_root/sdk-probe"
+rm -rf "$probe_root"
+mkdir -p "$probe_root"
+printf 'pub fn main() void {}\n' > "$probe_root/probe.zig"
+links_against() {
+    DEVELOPER_DIR="$1" "$zig_bin" build-exe "$probe_root/probe.zig" \
+        -femit-bin="$probe_root/probe" --cache-dir "$probe_root/cache" \
+        --global-cache-dir "$cache_dir" > "$probe_root/log" 2>&1
+}
+if [[ -n "${DEVELOPER_DIR:-}" ]]; then
+    candidates="$DEVELOPER_DIR"
+else
+    candidates="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -Vr | sed 's|$|/Contents/Developer|')
+$(xcode-select -p)"
+fi
+selected=""
+while IFS= read -r candidate; do
+    [[ -d "$candidate" ]] || continue
+    if links_against "$candidate"; then
+        selected="$candidate"
+        break
+    fi
+    echo "Skipping $candidate: Zig 0.14.1 cannot link against its SDK."
+done <<< "$candidates"
+if [[ -z "$selected" ]]; then
+    echo 'No installed Xcode ships an SDK that Zig 0.14.1 can link against; install Xcode 26.3 or older, or set DEVELOPER_DIR to one. The last attempt reported:' >&2
+    cat "$probe_root/log" >&2
+    exit 1
+fi
+export DEVELOPER_DIR="$selected"
+export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+rm -rf "$probe_root"
+echo "Building libghostty with $DEVELOPER_DIR against $SDKROOT"
+
 archive="$build_root/ghostty-1.2.3.tar.gz"
 if [[ ! -f "$archive" ]]; then
     curl --fail --location --retry 3 'https://release.files.ghostty.org/1.2.3/ghostty-1.2.3.tar.gz' -o "$archive"
@@ -47,7 +65,7 @@ fi
 cd "$source_root"
 "$zig_bin" build -Doptimize=ReleaseFast -Demit-macos-app=false \
     -Dxcframework-target=native -Demit-docs=false -Demit-themes=false -Di18n=false \
-    --global-cache-dir "$build_root/zig-cache"
+    --global-cache-dir "$cache_dir"
 package="$repo_root/Packages/TerminalKit"
 mkdir -p "$package/Vendor" "$package/Sources/TerminalKit/Resources"
 ditto macos/GhosttyKit.xcframework "$package/Vendor/GhosttyKit.xcframework"
