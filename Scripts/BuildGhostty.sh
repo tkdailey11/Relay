@@ -64,10 +64,43 @@ if [[ ! -d "$source_root" ]]; then
 fi
 cd "$source_root"
 
-# Ghostty pulls 35 packages, and Zig's HTTP client intermittently reuses a pooled connection
-# the server has already closed, which surfaces as a fetch failing mid-handshake — most often
-# "unable to discover remote git server capabilities: EndOfStream" (ziglang/zig#21316, still
-# open). Packages that did land stay in the cache, so a retry resumes instead of starting over.
+# Three of Ghostty's packages are pinned as git+https, and Zig 0.14.1 speaks the git
+# smart-HTTP protocol itself rather than shelling out to git. That handshake is what fails on
+# GitHub's runners — "unable to discover remote git server capabilities: EndOfStream", every
+# run, for the Codeberg-hosted one. The same commits are served as plain tarballs, and a
+# tarball fetch hashes identically to the git fetch, so seed the cache over plain HTTPS and
+# `zig build` resolves them by hash without ever opening a git connection. A hash that stops
+# matching means Ghostty moved a pin and these URLs are stale, so fail loudly rather than
+# leaving the build to fetch something unexpected.
+git_packages=(
+    "vaxis-0.1.0-BWNV_FUICQAFZnTCL11TUvnUr1Y0_ZdqtXHhd51d76Rn https://github.com/rockorager/libvaxis/archive/1f41c121e8fc153d9ce8c6eb64b2bbab68ad7d23.tar.gz"
+    "zigimg-0.1.0-lly-O6N2EABOxke8dqyzCwhtUCAafqP35zC7wsZ4Ddxj https://github.com/TUSF/zigimg/archive/31268548fe3276c0e95f318a6c0d2ab10565b58d.tar.gz"
+    "zg-0.13.4-AAAAAGiZ7QLz4pvECFa_wG4O4TP4FLABHHbemH2KakWM https://codeberg.org/atman/zg/archive/4a002763419a34d61dcbb1f415821b83b9bf8ddc.tar.gz"
+)
+for package in "${git_packages[@]}"; do
+    read -r expected url <<< "$package"
+    [[ -d "$cache_dir/p/$expected" ]] && continue
+    for attempt in 1 2 3; do
+        if actual="$("$zig_bin" fetch --global-cache-dir "$cache_dir" "$url")"; then
+            break
+        fi
+        actual=""
+        (( attempt < 3 )) && sleep $(( attempt * 15 ))
+    done
+    if [[ -z "$actual" ]]; then
+        echo "Could not download $url after 3 attempts." >&2
+        exit 1
+    fi
+    if [[ "$actual" != "$expected" ]]; then
+        echo "$url hashed to $actual, but Ghostty 1.2.3 pins $expected." >&2
+        echo 'Re-check the git+https pins in build.zig.zon before changing this list.' >&2
+        exit 1
+    fi
+done
+
+# The remaining 32 packages are plain tarballs, but Zig's HTTP client still intermittently
+# reuses a pooled connection the server has already closed (ziglang/zig#21316, still open).
+# Packages that did land stay in the cache, so a retry resumes instead of starting over.
 # Only fetch failures are retried; a compile error is deterministic and should fail at once.
 build_log="$build_root/build.log"
 attempt=1

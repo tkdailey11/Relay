@@ -91,12 +91,19 @@ that succeeds — Xcode 26.3 or older — as `DEVELOPER_DIR` for that step alone
 yourself to override the choice; the script still probes it and fails loudly if it cannot link.
 Once Ghostty moves to Zig 0.16 or newer, the whole block can go.
 
-Ghostty pulls 35 packages, and Zig's HTTP client intermittently drops a pooled connection
-mid-fetch ([ziglang/zig#21316](https://github.com/ziglang/zig/issues/21316)), usually as
-`unable to discover remote git server capabilities: EndOfStream`. `Scripts/BuildGhostty.sh`
-retries the build up to three times for that class of failure and fails immediately on a
-compile error. If all three attempts fail, the dependency host is genuinely down; re-run
-the job later rather than changing the pin.
+Ghostty pulls 35 packages. Three of them — vaxis, zigimg and zg — are pinned as `git+https`,
+and Zig 0.14.1 speaks the git smart-HTTP protocol itself instead of shelling out to `git`. That
+handshake fails consistently on GitHub's runners for the Codeberg-hosted `zg`, as
+`unable to discover remote git server capabilities: EndOfStream`, even though the same request
+succeeds from a laptop. `Scripts/BuildGhostty.sh` therefore seeds those three into the Zig cache
+from the equivalent plain-HTTPS tarballs, which hash identically, so `zig build` resolves them by
+hash and never opens a git connection. If a seeded hash stops matching, Ghostty moved that pin:
+update the URL and hash together from `build.zig.zon` rather than loosening the check.
+
+The other 32 packages are plain tarballs, but Zig's HTTP client still intermittently drops a
+pooled connection mid-fetch ([ziglang/zig#21316](https://github.com/ziglang/zig/issues/21316)),
+so the build is retried up to three times for fetch failures and fails immediately on a compile
+error.
 
 ## Entitlements
 
