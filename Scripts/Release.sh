@@ -39,6 +39,14 @@ fi
 # Scripts/BuildGhostty.sh vendors libghostty for the host architecture only, so the release is
 # Apple Silicon only. To ship a universal app, build Ghostty with -Dxcframework-target=universal
 # and drop the ARCHS override below.
+
+# The command line settings below reach every target in the build, including the resource
+# bundle SwiftPM generates for TerminalKit's Ghostty resources. That generated target is not
+# part of Relay.xcodeproj and so inherits none of its signing settings, and manual signing
+# without a team is an error, so the team has to be passed explicitly. ExportOptions.plist
+# already records it for the export step; read it from there rather than naming it twice.
+team="$(/usr/libexec/PlistBuddy -c 'Print :teamID' Scripts/ExportOptions.plist)"
+
 echo "==> Relay $version ($build), arm64"
 rm -rf "$output"
 mkdir -p "$output"
@@ -55,6 +63,7 @@ xcodebuild archive \
     CURRENT_PROJECT_VERSION="$build" \
     CODE_SIGN_STYLE=Manual \
     CODE_SIGN_IDENTITY="Developer ID Application" \
+    DEVELOPMENT_TEAM="$team" \
     OTHER_CODE_SIGN_FLAGS="--timestamp"
 
 echo "==> Exporting"
