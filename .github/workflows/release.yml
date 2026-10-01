@@ -24,8 +24,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Scripts/Release.sh derives the build number from the commit count.
+          # The build number is the commit count, and the version's patch number comes from the
+          # existing release tags, so both need full history and tags.
           fetch-depth: 0
+
+      - name: Choose the version
+        run: |
+          set -euo pipefail
+          series="$(tr -d '[:space:]' < VERSION)"
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # A pushed tag names the version itself, but must belong to VERSION's series so a
+            # build is never labelled two different ways.
+            version="${GITHUB_REF_NAME#v}"
+            if [[ ! "$version" =~ ^${series//./\\.}\.[0-9]+$ ]]; then
+              echo "Tag $GITHUB_REF_NAME is not a release of VERSION ($series), e.g. v$series.1." >&2
+              exit 1
+            fi
+          else
+            version="$(Scripts/Version.sh)"
+          fi
+          echo "RELAY_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Releasing $version"
 
       - name: Select Xcode
         run: |
@@ -103,24 +122,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          version="$(tr -d '[:space:]' < VERSION)"
+          version="$RELAY_VERSION"
           build="$(git rev-list --count HEAD)"
           zip=".build/release/Relay-$version.zip"
+          tag="v$version"
           args=(--title "Relay $version" --notes "Relay $version (build $build), Apple Silicon, notarized.
 
           Requires macOS 26 or newer.")
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # gh creates the tag itself from the checked-out commit.
-            tag="v$version-build.$build"
+            # Push the tag now rather than letting gh create it: a draft release has no tag until
+            # it is published, and Scripts/Version.sh counts tags to pick the next patch number.
+            # Tags pushed with the workflow token do not start this workflow again.
+            git tag "$tag"
+            git push origin "$tag"
             if [[ "${{ inputs.draft }}" == "true" ]]; then
               args+=(--draft)
-            fi
-          else
-            tag="$GITHUB_REF_NAME"
-            # A tag that disagrees with VERSION would ship a build labelled two different ways.
-            if [[ "$tag" != "v$version" ]]; then
-              echo "Tag $tag does not match VERSION ($version). Update VERSION and re-tag." >&2
-              exit 1
             fi
           fi
           gh release create "$tag" "$zip" "${args[@]}"

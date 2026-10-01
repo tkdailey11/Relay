@@ -10,10 +10,14 @@ unavailable and makes notarization failures debuggable interactively.
 
 ## Versioning
 
-`VERSION` at the repository root holds the marketing version (`0.1.0`). The build number is the
-commit count, so it increases with every build a tester can install and never needs to be
-maintained by hand. Both are passed to `xcodebuild` at archive time; the values checked into
-`project.pbxproj` only apply to local Xcode builds.
+`VERSION` at the repository root holds the major and minor version (`0.1`). Each release takes
+the next unused patch number in that series, so releases go 0.1.1, 0.1.2, 0.1.3 and so on.
+`Scripts/Version.sh` works it out from the release tags: one past the highest `v0.1.N` tag, or
+`.1` when there is none. Changing `VERSION` to `0.2` starts a new series at 0.2.1.
+
+The build number is the commit count, so it increases with every build a tester can install and
+never needs to be maintained by hand. Both are passed to `xcodebuild` at archive time; the values
+checked into `project.pbxproj` only apply to local Xcode builds.
 
 The standard About panel shows both, so a tester reporting a bug can read off the exact build.
 
@@ -63,14 +67,19 @@ Locally:
 AC_KEYCHAIN_PROFILE=Relay Scripts/Release.sh
 ```
 
-Through GitHub Actions, either push a tag matching `VERSION`:
+A local build fetches tags and names itself after the next patch number, but does not tag, so
+the number is only claimed once a release is tagged. Set `RELAY_VERSION` to build a specific
+version instead.
+
+Through GitHub Actions, run the **Release** workflow manually. It picks the next version, pushes
+its tag and creates the release, as a draft unless that box is unchecked. To choose the number
+yourself, push a tag in `VERSION`'s series instead:
 
 ```sh
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.1.4 && git push origin v0.1.4
 ```
 
-or run the **Release** workflow manually, which produces a draft release tagged with the build
-number. Both paths upload a notarized, stapled `Relay-<version>.zip`.
+Both paths upload a notarized, stapled `Relay-<version>.zip`.
 
 ## Architecture
 

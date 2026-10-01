@@ -16,7 +16,9 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
-version="$(tr -d '[:space:]' < VERSION)"
+# The version is the next unused patch in VERSION's series (see Scripts/Version.sh). CI passes
+# RELAY_VERSION when a pushed tag has already chosen it.
+version="${RELAY_VERSION:-$(Scripts/Version.sh)}"
 # The build number must increase with every build a tester can install, or macOS and Relay's
 # own crash reports cannot tell two builds apart. Commit count is monotonic and needs no state.
 build="${RELAY_BUILD_NUMBER:-$(git rev-list --count HEAD)}"
