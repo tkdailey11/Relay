@@ -5,6 +5,9 @@ struct WorkspaceShell: View {
     let terminals: TerminalSessionManager
     @State private var sessionPendingClose: Session?
     @State private var showsCloseConfirmation = false
+    @State private var sessionPendingRename: Session?
+    @State private var showsRenamePrompt = false
+    @State private var renameText = ""
     @State private var focusRequest = UUID()
     @State private var scrollbackSearch: ScrollbackSearchItem?
     let name: String
@@ -32,7 +35,8 @@ struct WorkspaceShell: View {
             }
             TerminalPane(terminals: terminals, directory: path, focusRequest: focusRequest,
                          selectedSession: selectedSession, sessions: sessions,
-                                selectSession: selectSession, closeSession: closeSession,
+                                selectSession: selectSession, renameSession: beginRenaming,
+                                closeSession: closeSession,
                                 isExpanded: $isTerminalExpanded,
                                 types: types, addSession: addSession)
             if !isTerminalExpanded {
@@ -52,6 +56,13 @@ struct WorkspaceShell: View {
         } message: {
             Text("The process running in this terminal will be stopped.")
         }
+        .alert("Rename Session", isPresented: $showsRenamePrompt) {
+            TextField(sessionPendingRename.map { types.resolve($0).name } ?? "Name", text: $renameText)
+            Button("Rename", action: finishRenaming)
+            Button("Cancel", role: .cancel) { sessionPendingRename = nil }
+        } message: {
+            Text("Leave the name empty to use the session type’s name.")
+        }
         .onChange(of: isTerminalExpanded) { focusRequest = UUID() }
         .sheet(item: $scrollbackSearch) { item in
             ScrollbackSearchView(sessionName: item.sessionName, scrollback: item.scrollback)
@@ -64,7 +75,7 @@ struct WorkspaceShell: View {
             ScrollbackSearchAction(show: showScrollbackSearch)
         })
         .focusedSceneValue(\.sessionSwitch, SessionSwitchAction(
-            titles: sessions.map { types.resolve($0).name },
+            titles: sessions.map { $0.title(types.resolve($0)) },
             selectedIndex: sessions.firstIndex { $0.id == selectedSessionID },
             select: selectSession
         ))
@@ -81,6 +92,7 @@ struct WorkspaceShell: View {
                                     status: terminals.status(for: session),
                                     isSelected: session.id == selectedSessionID,
                                     select: { selectSession(session) },
+                                    rename: { beginRenaming(session) },
                                     menu: { sessionMenu(session) })
                             .contextMenu { sessionMenu(session) }
                     }
@@ -93,6 +105,10 @@ struct WorkspaceShell: View {
 
     /// Shared by the card's options button and its right-click menu so the two never drift.
     @ViewBuilder private func sessionMenu(_ session: Session) -> some View {
+        Button("Rename Session…", systemImage: "pencil") {
+            beginRenaming(session)
+        }
+        Divider()
         Button("Close Session", systemImage: "xmark", role: .destructive) {
             closeSession(session)
         }
@@ -101,7 +117,7 @@ struct WorkspaceShell: View {
     private var activeTerminal: ActiveTerminalAction? {
         guard let selectedSession, let terminal = terminals.sessions[selectedSession.id] else { return nil }
         return ActiveTerminalAction(
-            sessionName: types.resolve(selectedSession).name,
+            sessionName: selectedSession.title(types.resolve(selectedSession)),
             perform: { terminal.perform($0) },
             scrollback: { terminal.scrollbackText }
         )
@@ -122,6 +138,22 @@ struct WorkspaceShell: View {
 
     private func selectSession(_ session: Session) {
         selectedSessionID = session.id
+        focusRequest = UUID()
+    }
+
+    private func beginRenaming(_ session: Session) {
+        sessionPendingRename = session
+        renameText = session.title(types.resolve(session))
+        showsRenamePrompt = true
+    }
+
+    /// Looked up by id: the session may have moved in the array while the prompt was open.
+    private func finishRenaming() {
+        defer { sessionPendingRename = nil }
+        guard let id = sessionPendingRename?.id,
+              let index = sessions.firstIndex(where: { $0.id == id }) else { return }
+        sessions[index].rename(to: renameText, typeName: types.resolve(sessions[index]).name)
+        // The alert took focus from the terminal; hand it back.
         focusRequest = UUID()
     }
 

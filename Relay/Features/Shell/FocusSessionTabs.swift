@@ -6,6 +6,7 @@ struct FocusSessionTabs: View {
     let sessions: [Session]
     let selectedSessionID: Session.ID?
     let selectSession: (Session) -> Void
+    let renameSession: (Session) -> Void
     let closeSession: (Session) -> Void
 
     var body: some View {
@@ -15,10 +16,11 @@ struct FocusSessionTabs: View {
                     ForEach(sessions) { session in
                         let isSelected = session.id == selectedSessionID
                         let type = resolve(session)
+                        let title = session.title(type)
                         Button {
                             selectSession(session)
                         } label: {
-                            Label(type.name, systemImage: type.symbol)
+                            Label(title, systemImage: type.symbol)
                                 .lineLimit(1)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
@@ -36,10 +38,20 @@ struct FocusSessionTabs: View {
                                 }
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(type.name) session")
+                        // Simultaneous so the first click still selects without waiting to
+                        // rule out a double-click, as Finder and Safari tabs do.
+                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                            renameSession(session)
+                        })
+                        .help("Double-click to rename")
+                        .accessibilityLabel("\(title) session")
                         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                         .accessibilityValue(isSelected ? "Selected, \(status(session))" : status(session))
                         .contextMenu {
+                            Button("Rename Session…", systemImage: "pencil") {
+                                renameSession(session)
+                            }
+                            Divider()
                             Button("Close Session", systemImage: "xmark", role: .destructive) {
                                 closeSession(session)
                             }

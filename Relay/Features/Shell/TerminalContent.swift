@@ -12,7 +12,7 @@ struct TerminalContent: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private func name(of session: Session) -> String {
-        types.resolve(session).name
+        session.title(types.resolve(session))
     }
 
     var body: some View {
@@ -26,7 +26,7 @@ struct TerminalContent: View {
                     case .failed(let message):
                         Text(message).padding().background(.regularMaterial)
                     case .exited:
-                        Text("\(name(of: selectedSession)) exited. Create a new \(name(of: selectedSession)) session to continue.")
+                        Text("\(name(of: selectedSession)) exited. Create a new \(types.resolve(selectedSession).name) session to continue.")
                             .padding().background(.regularMaterial)
                     default:
                         EmptyView()

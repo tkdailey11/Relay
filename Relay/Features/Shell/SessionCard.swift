@@ -6,15 +6,17 @@ struct SessionCard<MenuContent: View>: View {
     let status: String
     let isSelected: Bool
     let select: () -> Void
+    let rename: () -> Void
     @ViewBuilder let menu: () -> MenuContent
     @State private var isHovered = false
+    private var title: String { session.title(type) }
 
     var body: some View {
         Button(action: select) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
                     Image(systemName: type.symbol).foregroundStyle(type.color)
-                    Text(type.name).fontWeight(.medium)
+                    Text(title).fontWeight(.medium)
                     Spacer()
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
@@ -37,12 +39,24 @@ struct SessionCard<MenuContent: View>: View {
             }
         }
         .buttonStyle(.plain).onHover { isHovered = $0 }
+        // Simultaneous so the first click still selects without waiting to rule out a
+        // double-click, matching the tabs in terminal focus.
+        .simultaneousGesture(TapGesture(count: 2).onEnded(rename))
+        .help("Double-click to rename")
+        // Ignoring the children replaces the button's own element, so the button role and
+        // its press have to be restored. Rename is offered too: a double-click is not.
         .accessibilityElement(children: .ignore)
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-        .accessibilityInputLabels([Text("\(type.name) session")])
-        .accessibilityLabel("\(type.name) session")
+        .accessibilityAddTraits(accessibilityTraits)
+        .accessibilityAction { select() }
+        .accessibilityAction(named: Text("Rename")) { rename() }
+        .accessibilityInputLabels([Text("\(title) session")])
+        .accessibilityLabel("\(title) session")
         .accessibilityValue(isSelected ? "Selected, \(status)" : status)
         .overlay(alignment: .topTrailing) { optionsButton }
+    }
+
+    private var accessibilityTraits: AccessibilityTraits {
+        isSelected ? [.isButton, .isSelected] : .isButton
     }
 
     /// Selection is carried by a tint rather than a heavier material, so a row of cards
@@ -54,7 +68,7 @@ struct SessionCard<MenuContent: View>: View {
 
     private var optionsButton: some View {
         OptionsMenuButton(isHovered: isHovered,
-                          accessibilityTitle: "\(type.name) session options",
+                          accessibilityTitle: "\(title) session options",
                           menu: menu)
             .padding(.top, 12).padding(.trailing, 10)
     }

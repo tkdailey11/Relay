@@ -6,6 +6,9 @@ struct Session: Identifiable, Codable, Equatable {
     /// running session, so the name it was started under is stored alongside.
     var typeID: String
     var typeName: String
+    /// Set by the user to tell sessions apart, such as two Claude sessions on different tasks.
+    /// Nil shows the type's name, so renaming the type in Settings still reaches the session.
+    var customName: String?
 
     init(id: UUID = UUID(), type: SessionType) {
         self.id = id
@@ -20,7 +23,7 @@ struct Session: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, typeID, typeName
+        case id, typeID, typeName, customName
         /// Relay 0.1 stored a `SessionKind` raw value here: "Claude", "Copilot" or "Shell".
         case kind
     }
@@ -31,11 +34,13 @@ struct Session: Identifiable, Codable, Equatable {
         try container.encode(id, forKey: .id)
         try container.encode(typeID, forKey: .typeID)
         try container.encode(typeName, forKey: .typeName)
+        try container.encodeIfPresent(customName, forKey: .customName)
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
+        customName = try container.decodeIfPresent(String.self, forKey: .customName)
         if let typeID = try container.decodeIfPresent(String.self, forKey: .typeID) {
             self.typeID = typeID
             // A snapshot written before typeName existed falls back to the id.
@@ -47,5 +52,17 @@ struct Session: Identifiable, Codable, Equatable {
             typeID = kind.lowercased()
             typeName = kind
         }
+    }
+
+    /// What the UI calls this session: its custom name, falling back to its type's.
+    func title(_ type: ResolvedSessionType) -> String {
+        customName ?? type.name
+    }
+
+    /// A blank name, or the type's own, clears the custom one: the tab never goes untitled,
+    /// and a session left on its type's name keeps following that type through renames.
+    mutating func rename(to name: String, typeName: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        customName = trimmed.isEmpty || trimmed == typeName ? nil : trimmed
     }
 }

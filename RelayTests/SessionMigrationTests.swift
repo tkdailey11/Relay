@@ -79,3 +79,40 @@ struct SessionMigrationTests {
         #expect(session.typeName == "aider")
     }
 }
+
+@MainActor
+struct SessionRenameTests {
+    private let claude = SessionType.presets.first { $0.id == "claude" }!
+
+    @Test func aRenamedSessionShowsItsNameAndKeepsItAcrossRelaunch() throws {
+        let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+            .appending(path: "workspaces.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = WorkspaceStore(fileURL: url, terminalsEnabled: false)
+        store.addWorkspace(at: URL(filePath: "/tmp/relay-rename"))
+        let workspaceID = try #require(store.state.workspaces.first?.id)
+        store.addSession(claude, to: workspaceID)
+        store.state.workspaces[0].sessions[0].rename(to: "  Fix login bug ", typeName: claude.name)
+
+        let reopened = WorkspaceStore(fileURL: url, terminalsEnabled: false)
+        let session = try #require(reopened.state.workspaces.first?.sessions.first)
+        #expect(session.customName == "Fix login bug")
+        #expect(session.title(ResolvedSessionType(claude)) == "Fix login bug")
+    }
+
+    @Test func aBlankOrTypeNameClearsTheCustomName() {
+        var session = Session(type: claude)
+        session.rename(to: "Review", typeName: claude.name)
+        session.rename(to: "   ", typeName: claude.name)
+        #expect(session.customName == nil)
+        session.rename(to: "Review", typeName: claude.name)
+        session.rename(to: claude.name, typeName: claude.name)
+        #expect(session.customName == nil)
+        #expect(session.title(ResolvedSessionType(claude)) == claude.name)
+    }
+
+    @Test func anUnnamedSessionIsSavedWithoutACustomName() throws {
+        let data = try JSONEncoder().encode(Session(type: claude))
+        #expect(String(decoding: data, as: UTF8.self).contains("customName") == false)
+    }
+}

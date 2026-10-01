@@ -49,11 +49,13 @@ enum QuickSwitcher {
                                      resolve: (Session) -> ResolvedSessionType) -> [QuickSwitcherItem] {
         sessions.enumerated().map { index, session in
             let type = resolve(session)
+            let title = session.title(type)
             return QuickSwitcherItem(
                 id: session.id.uuidString, destination: destination, sessionID: session.id,
-                title: type.name, subtitle: name, symbol: type.symbol, color: type.color,
+                title: title, subtitle: name, symbol: type.symbol, color: type.color,
                 shortcutNumber: index < 9 ? index + 1 : nil,
-                searchText: "\(type.name) \(name)")
+                // The type stays searchable after a rename, so "claude" still finds every one.
+                searchText: "\(title) \(type.name) \(name)")
         }
     }
 
