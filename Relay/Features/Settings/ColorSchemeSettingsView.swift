@@ -9,6 +9,13 @@ struct ColorSchemeSettingsView: View {
     @State private var selection: TerminalColorScheme.ID?
     @State private var editing: EditorTarget?
     @State private var isImporting = false
+    @State private var exporting: ExportTarget?
+
+    private struct ExportTarget {
+        let document: ColorSchemeFile
+        let format: ColorSchemeExporter.Format
+        let fileName: String
+    }
 
     private struct EditorTarget: Identifiable {
         let id = UUID()
@@ -40,6 +47,7 @@ struct ColorSchemeSettingsView: View {
                 if let scheme = ids.first.flatMap(settings.colorScheme(id:)) {
                     Button(scheme.isBuiltIn ? "Edit a Copy…" : "Edit…") { edit(scheme) }
                     Button("Duplicate") { selection = settings.duplicateColorScheme(scheme).id }
+                    Menu("Export") { exportButtons(for: scheme) }
                     if !scheme.isBuiltIn {
                         Divider()
                         Button("Remove", role: .destructive) { settings.removeColorScheme(id: scheme.id) }
@@ -80,6 +88,16 @@ struct ColorSchemeSettingsView: View {
                       ? "Built-in schemes can’t be removed"
                       : "Remove the selected color scheme")
 
+                Menu {
+                    if let selectedScheme { exportButtons(for: selectedScheme) }
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .disabled(selectedScheme == nil)
+                .help("Export the selected color scheme")
+
                 Spacer()
                 Button(selectedScheme?.isBuiltIn == true ? "Edit a Copy…" : "Edit…") {
                     if let selectedScheme { edit(selectedScheme) }
@@ -89,7 +107,7 @@ struct ColorSchemeSettingsView: View {
                     .help("Use Relay Light and Relay Dark again. Your schemes are kept.")
             }
             .padding(.horizontal, 12).padding(.top, 12)
-            Text("Import iTerm2 (.itermcolors), Terminal (.terminal) or Ghostty theme files, or drop them on the list. Built-in schemes are fixed, so editing one saves a copy.")
+            Text("Import iTerm2 (.itermcolors), Terminal (.terminal) or Ghostty theme files, or drop them on the list. Export writes iTerm2 or Ghostty files. Built-in schemes are fixed, so editing one saves a copy.")
                 .font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -103,6 +121,17 @@ struct ColorSchemeSettingsView: View {
             case .failure(let error): settings.errorMessage = error.localizedDescription
             }
         }
+        .fileExporter(isPresented: Binding(get: { exporting != nil },
+                                           set: { if !$0 { exporting = nil } }),
+                      document: exporting?.document,
+                      contentType: exporting?.format.contentType ?? .data,
+                      defaultFilename: exporting?.fileName) { result in
+            if case .failure(let error) = result {
+                RelayLog.error(.app, "Could not export color scheme: \(error)")
+                settings.errorMessage = error.localizedDescription
+            }
+            exporting = nil
+        }
         .sheet(item: $editing) { target in
             ColorSchemeEditor(scheme: target.scheme, isNew: target.isNew) { edited in
                 if target.isNew {
@@ -113,7 +142,7 @@ struct ColorSchemeSettingsView: View {
                 }
             }
         }
-        .alert("Some Color Schemes Weren’t Imported",
+        .alert("Color Scheme Problem",
                isPresented: Binding(get: { settings.errorMessage != nil },
                                     set: { if !$0 { settings.errorMessage = nil } })) {
             Button("OK") { settings.errorMessage = nil }
@@ -134,6 +163,23 @@ struct ColorSchemeSettingsView: View {
             editing = EditorTarget(scheme: copy, isNew: true)
         } else {
             editing = EditorTarget(scheme: scheme, isNew: false)
+        }
+    }
+
+    @ViewBuilder
+    private func exportButtons(for scheme: TerminalColorScheme) -> some View {
+        ForEach(ColorSchemeExporter.Format.allCases, id: \.self) { format in
+            Button("\(format.title)…") { export(scheme, as: format) }
+        }
+    }
+
+    private func export(_ scheme: TerminalColorScheme, as format: ColorSchemeExporter.Format) {
+        do {
+            let data = try ColorSchemeExporter.data(for: scheme, as: format)
+            exporting = ExportTarget(document: ColorSchemeFile(data: data), format: format, fileName: scheme.name)
+        } catch {
+            RelayLog.error(.app, "Could not export \(scheme.name): \(error)")
+            settings.errorMessage = "Relay couldn’t export “\(scheme.name)”. \(error.localizedDescription)"
         }
     }
 

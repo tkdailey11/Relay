@@ -130,7 +130,7 @@ public struct TerminalColorScheme: Identifiable, Hashable, Sendable, Codable {
     }
 
     /// The scheme as a Ghostty theme file.
-    var themeFileContents: String {
+    public var themeFileContents: String {
         var lines = [
             "background = \(background.hex)",
             "foreground = \(foreground.hex)",
