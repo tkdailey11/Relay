@@ -20,7 +20,6 @@ final class GhosttyRuntime {
     private var settings: TerminalSettings
     private var observers: [NSObjectProtocol] = []
     private var appearanceObservation: NSKeyValueObservation?
-    private let themes: (light: URL, dark: URL)
     /// libghostty reads a surface's command from the app configuration it was created under, and
     /// every config handed to ghostty_app_update_config has to outlive the surfaces that read it,
     /// so each distinct command keeps its config for the life of the process.
@@ -32,9 +31,7 @@ final class GhosttyRuntime {
     private let surfaces = NSHashTable<GhosttySurfaceView>.weakObjects()
 
     private init() throws {
-        guard let resources = Bundle.module.url(forResource: "ghostty", withExtension: nil),
-              let light = Bundle.module.url(forResource: "RelayLight", withExtension: nil),
-              let dark = Bundle.module.url(forResource: "RelayDark", withExtension: nil) else {
+        guard let resources = Bundle.module.url(forResource: "ghostty", withExtension: nil) else {
             throw TerminalError.initialization("Bundled Ghostty resources are missing. Run Scripts/BuildGhostty.sh and rebuild.")
         }
         setenv("GHOSTTY_RESOURCES_DIR", resources.path, 1)
@@ -47,8 +44,7 @@ final class GhosttyRuntime {
         }
         let settings = Terminal.settings.sanitized
         self.settings = settings
-        self.themes = (light, dark)
-        self.config = try Self.makeConfig(light: light, dark: dark, settings: settings, command: nil)
+        self.config = try Self.makeConfig(settings: settings, command: nil)
         var callbacks = ghostty_runtime_config_s()
         callbacks.supports_selection_clipboard = false
         callbacks.wakeup_cb = { _ in
@@ -150,19 +146,17 @@ final class GhosttyRuntime {
 
     private func configuration(for command: String) throws -> ghostty_config_t {
         if let existing = commandConfigs[command] { return existing }
-        let scoped = try Self.makeConfig(light: themes.light, dark: themes.dark,
-                                         settings: settings, command: command)
+        let scoped = try Self.makeConfig(settings: settings, command: command)
         commandConfigs[command] = scoped
         return scoped
     }
 
-    private static func makeConfig(light: URL, dark: URL, settings: TerminalSettings,
-                                   command: String?) throws -> ghostty_config_t {
+    static func makeConfig(settings: TerminalSettings, command: String?) throws -> ghostty_config_t {
         guard let config = ghostty_config_new() else {
             throw TerminalError.initialization("libghostty could not allocate its configuration.")
         }
         do {
-            try loadSettings(into: config, light: light, dark: dark, settings: settings, command: command)
+            try loadSettings(into: config, settings: settings, command: command)
         } catch {
             ghostty_config_free(config)
             throw error
@@ -187,8 +181,7 @@ final class GhosttyRuntime {
     func apply(_ settings: TerminalSettings) {
         guard settings != self.settings else { return }
         do {
-            let updated = try Self.makeConfig(light: themes.light, dark: themes.dark,
-                                              settings: settings, command: nil)
+            let updated = try Self.makeConfig(settings: settings, command: nil)
             // Never freed: a surface reads the configuration it was created under lazily.
             retired.append(config)
             retired.append(contentsOf: commandConfigs.values)
@@ -197,7 +190,7 @@ final class GhosttyRuntime {
             self.settings = settings
             ghostty_app_update_config(app, updated)
             for view in surfaces.allObjects { view.applyConfiguration(updated) }
-            TerminalDiagnostics.info("Applied terminal settings: \(settings.fontFamily ?? "default font") at \(Int(settings.fontSize))pt, \(surfaces.allObjects.count) surface(s)")
+            TerminalDiagnostics.info("Applied terminal settings: \(settings.fontFamily ?? "default font") at \(Int(settings.fontSize))pt, \(settings.lightColors.name) / \(settings.darkColors.name), \(surfaces.allObjects.count) surface(s)")
         } catch {
             TerminalDiagnostics.error("Could not apply terminal settings: \(error.localizedDescription)")
         }
@@ -244,16 +237,24 @@ final class GhosttyRuntime {
     /// out. `config-file` is applied after the default files, so these values are the last word;
     /// a user's ~/Library/Application Support/com.mitchellh.ghostty/config still supplies keys
     /// Relay leaves unset.
-    private static func loadSettings(into config: ghostty_config_t, light: URL, dark: URL,
-                                     settings: TerminalSettings, command: String? = nil) throws {
+    private static func loadSettings(into config: ghostty_config_t, settings: TerminalSettings,
+                                     command: String? = nil) throws {
         // Each command needs its own XDG_CONFIG_HOME because libghostty only ever reads
         // `ghostty/config` beneath it.
         let base = URL.applicationSupportDirectory.appending(path: "Relay/Terminal")
         let root = command.map { base.appending(path: "commands/\(Self.directoryName(for: $0))") } ?? base
         let file = root.appending(path: "relay.conf")
+        // libghostty reads a theme when the configuration loads, so rewriting these files for
+        // the next configuration leaves the ones already loaded untouched.
+        let themes = base.appending(path: "themes")
+        let light = themes.appending(path: "light")
+        let dark = themes.appending(path: "dark")
         do {
             try FileManager.default.createDirectory(at: root.appending(path: "ghostty"),
                                                     withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: themes, withIntermediateDirectories: true)
+            try settings.lightColors.themeFileContents.write(to: light, atomically: true, encoding: .utf8)
+            try settings.darkColors.themeFileContents.write(to: dark, atomically: true, encoding: .utf8)
             try """
                 theme = light:\(light.path),dark:\(dark.path)
                 keybind = clear

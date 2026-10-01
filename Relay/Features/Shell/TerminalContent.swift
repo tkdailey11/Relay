@@ -7,6 +7,9 @@ struct TerminalContent: View {
     let focusRequest: UUID
     let types: SessionTypeStore
     let addSession: (SessionType) -> Void
+    /// Optional so previews, which have no settings, still render.
+    @Environment(SettingsStore.self) private var settings: SettingsStore?
+    @Environment(\.colorScheme) private var colorScheme
 
     private func name(of session: Session) -> String {
         types.resolve(session).name
@@ -15,6 +18,9 @@ struct TerminalContent: View {
     var body: some View {
         if let selectedSession, let terminal = terminals.sessions[selectedSession.id] {
             TerminalView(session: terminal, focusRequest: focusRequest)
+                // libghostty paints its own background; this only shows while a surface resizes,
+                // where the pane's brand color would flash around a user's scheme.
+                .background(settings.map { Color($0.colors(isDark: colorScheme == .dark).background) })
                 .overlay(alignment: .bottom) {
                     switch terminal.status {
                     case .failed(let message):

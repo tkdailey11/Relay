@@ -10,6 +10,8 @@ struct SettingsView: View {
         TabView {
             TerminalSettingsView(settings: settings)
                 .tabItem { Label("Terminal", systemImage: "terminal") }
+            ColorSchemeSettingsView(settings: settings)
+                .tabItem { Label("Colors", systemImage: "paintpalette") }
             SessionTypeSettingsView(store: sessionTypes)
                 .tabItem { Label("Session Types", systemImage: "sparkle") }
         }

@@ -58,6 +58,7 @@ struct RelayApp: App {
     var body: some Scene {
         Window("Relay", id: "main") {
             ContentView(store: store, sessionTypes: sessionTypes)
+                .environment(settings)
                 .onAppear { delegate.terminals = store.terminals }
         }
         .defaultLaunchBehavior(.presented)

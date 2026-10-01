@@ -35,7 +35,7 @@ final class SettingsTests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsWindowOpensWithBothTabs() throws {
+    func testSettingsWindowOpensWithEveryTab() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["RELAY_UI_TESTING"] = "1"
@@ -66,6 +66,12 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["Codex session type"].exists,
                       "missing the Codex preset")
         XCTAssertTrue(app.buttons["Restore Presets"].exists)
+
+        window.toolbars.buttons["Colors"].click()
+        XCTAssertTrue(app.descendants(matching: .any)["Relay Dark color scheme"].waitForExistence(timeout: 5),
+                      "missing the built-in dark scheme")
+        XCTAssertTrue(app.descendants(matching: .any)["Relay Light color scheme"].exists,
+                      "missing the built-in light scheme")
     }
 
     @MainActor

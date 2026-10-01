@@ -7,14 +7,20 @@ public struct TerminalSettings: Equatable, Sendable {
     /// nil uses libghostty's default monospaced face.
     public var fontFamily: String?
     public var fontSize: Double
+    /// Terminals follow the system appearance, taking these colors in light and dark mode.
+    public var lightColors: TerminalColorScheme
+    public var darkColors: TerminalColorScheme
 
     public static let minimumFontSize: Double = 6
     public static let maximumFontSize: Double = 72
     public static let `default` = TerminalSettings()
 
-    public init(fontFamily: String? = nil, fontSize: Double = 13) {
+    public init(fontFamily: String? = nil, fontSize: Double = 13,
+                lightColors: TerminalColorScheme = .relayLight, darkColors: TerminalColorScheme = .relayDark) {
         self.fontFamily = fontFamily
         self.fontSize = fontSize
+        self.lightColors = lightColors
+        self.darkColors = darkColors
     }
 
     /// A size outside this range renders a terminal no one can use, and the value arrives from

@@ -10,8 +10,7 @@ let package = Package(
         .target(
             name: "TerminalKit",
             dependencies: ["GhosttyKit"],
-            resources: [.copy("Resources/ghostty"), .copy("Resources/terminfo"),
-                        .copy("Resources/RelayLight"), .copy("Resources/RelayDark")],
+            resources: [.copy("Resources/ghostty"), .copy("Resources/terminfo")],
             linkerSettings: [.linkedLibrary("c++"), .linkedFramework("Carbon"),
                              .linkedFramework("Metal"), .linkedFramework("QuartzCore")]
         ),
