@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* TerminalKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000002 /* TerminalKit */; };
+		B20000000000000000000002 /* USAGE.md in Resources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* USAGE.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +32,7 @@
 		823C333E305A37E7007F3666 /* Relay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Relay.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		823C334B305A37E9007F3666 /* RelayTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RelayTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		823C3355305A37E9007F3666 /* RelayUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RelayUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000000001 /* USAGE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = USAGE.md; path = Docs/USAGE.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -83,6 +85,7 @@
 				823C3340305A37E7007F3666 /* Relay */,
 				823C334E305A37E9007F3666 /* RelayTests */,
 				823C3358305A37E9007F3666 /* RelayUITests */,
+				B20000000000000000000001 /* USAGE.md */,
 				823C333F305A37E7007F3666 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -221,6 +224,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B20000000000000000000002 /* USAGE.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

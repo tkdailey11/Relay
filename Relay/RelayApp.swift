@@ -68,5 +68,13 @@ struct RelayApp: App {
         Settings {
             SettingsView(settings: settings, sessionTypes: sessionTypes)
         }
+
+        // Opened from Help ▸ Relay Help, never at launch or by state restoration.
+        Window("Relay Help", id: UsageGuideView.windowID) {
+            UsageGuideView()
+        }
+        .defaultSize(width: 760, height: 820)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
     }
 }

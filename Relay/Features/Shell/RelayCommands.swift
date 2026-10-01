@@ -83,6 +83,7 @@ struct RelayCommands: Commands {
     @FocusedValue(\.newSession) private var newSession
     @FocusedValue(\.scrollbackSearch) private var scrollbackSearch
     @FocusedValue(\.destinationSwitch) private var destinationSwitch
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         // Relay has one window, so the File menu's New Window is replaced by the thing a user
@@ -139,9 +140,12 @@ struct RelayCommands: Commands {
             terminalButton("Scroll to Top", .scrollToTop, .home)
             terminalButton("Scroll to Bottom", .scrollToBottom, .end)
         }
-        // Beta testers need one place to get a report from, and Help is where macOS users
-        // look for it.
-        CommandGroup(after: .help) {
+        // Replaces the stock item, which only says help isn't available. Beta testers also need
+        // one place to get a report from, and Help is where macOS users look for both.
+        CommandGroup(replacing: .help) {
+            Button("Relay Help") { openWindow(id: UsageGuideView.windowID) }
+                .keyboardShortcut("?", modifiers: .command)
+            Divider()
             Button("Diagnostics…") { diagnostics?.show() }
                 .disabled(diagnostics == nil)
         }
