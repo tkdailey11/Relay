@@ -2,7 +2,7 @@
 
 ## Specification & Scope
 
-Read all files in `Docs/` before implementation. They define Relay’s current product, design, architecture, and MVP specification. `Docs/MVP.md` controls scope; do not implement roadmap features unless explicitly requested. Prioritize excellent workspace/session switching, stability, and native macOS behavior.
+Read all files in `Docs/` before implementation. They define Relay’s current product, design, architecture, and MVP specification; `Docs/USAGE.md` is the user-facing guide to shipped behavior. `Docs/MVP.md` controls scope; do not implement roadmap features unless explicitly requested. Prioritize excellent workspace/session switching, stability, and native macOS behavior.
 
 ## Project Structure & Module Organization
 
@@ -37,4 +37,4 @@ Use `@Test` and `#expect` for unit tests; use `XCTestCase` and `test...` methods
 
 ## Commit & Pull Request Guidelines
 
-History contains only `Initial Commit`, so no established commit convention exists. Use concise, imperative subjects, such as `Add workspace persistence`. Keep changes focused. PRs should describe behavior, identify the relevant MVP milestone, link related issues when applicable, and report validation results. Include screenshots for visual changes.
+History contains only `Initial Commit`, so no established commit convention exists. Use concise, imperative subjects, such as `Add workspace persistence`. Keep changes focused. PRs should describe behavior, identify the relevant MVP milestone, link related issues when applicable, and report validation results. Include screenshots for visual changes. When a change adds or alters user-visible behavior, shortcuts, or settings, update `Docs/USAGE.md` in the same change.
