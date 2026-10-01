@@ -9,6 +9,10 @@ struct ContentView: View {
     @State private var isShowingError = false
     @State private var isTerminalExpanded = false
     @State private var diagnosticsReport: DiagnosticsReportItem?
+    @State private var isShowingQuickSwitcher = false
+    /// Applied when the switcher's sheet closes, so the terminal it lands on takes focus in a
+    /// key window instead of behind the sheet.
+    @State private var pendingSwitch: QuickSwitcherItem?
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var sidebarVisibilityBeforeFocus = NavigationSplitViewVisibility.all
     private var selectedIndex: Int? {
@@ -30,6 +34,15 @@ struct ContentView: View {
         .focusedSceneValue(\.diagnostics, DiagnosticsAction(show: showDiagnostics))
         .sheet(item: $diagnosticsReport) { report in
             DiagnosticsView(report: report.text)
+        }
+        .focusedSceneValue(\.destinationSwitch, DestinationSwitchAction(
+            canStep: store.destinations.count > 1,
+            showQuickSwitcher: { isShowingQuickSwitcher = true },
+            step: store.selectAdjacentDestination
+        ))
+        .sheet(isPresented: $isShowingQuickSwitcher, onDismiss: applyPendingSwitch) {
+            QuickSwitcherView(items: quickSwitcherItems, currentItemID: currentSwitcherItemID,
+                              choose: { pendingSwitch = $0 })
         }
         .focusedSceneValue(\.terminalFocus, isShowingShell
                            ? TerminalFocusAction(isExpanded: isTerminalExpanded, toggle: toggleTerminalFocus)
@@ -91,6 +104,25 @@ struct ContentView: View {
 
     private var isShowingShell: Bool {
         store.destination == .temporary || selectedIndex != nil
+    }
+
+    private var quickSwitcherItems: [QuickSwitcherItem] {
+        QuickSwitcher.items(workspaces: workspaces, temporarySessions: store.temporarySessions,
+                            resolve: sessionTypes.resolve)
+    }
+
+    private var currentSwitcherItemID: String? {
+        if store.destination == .temporary {
+            return store.selectedTemporarySessionID?.uuidString ?? "temporary"
+        }
+        guard let index = selectedIndex else { return nil }
+        return (workspaces[index].selectedSessionID ?? workspaces[index].id).uuidString
+    }
+
+    private func applyPendingSwitch() {
+        guard let pendingSwitch else { return }
+        self.pendingSwitch = nil
+        store.select(pendingSwitch.destination, sessionID: pendingSwitch.sessionID)
     }
 
     // Built on demand: the report is a snapshot of the moment the user asked for it.

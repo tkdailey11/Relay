@@ -43,6 +43,40 @@ final class WorkspaceStore {
         }
     }
 
+    /// Sidebar order, which is what next/previous workspace steps through.
+    var destinations: [SessionDestination] {
+        state.workspaces.map { .workspace($0.id) } + [.temporary]
+    }
+
+    /// Shows a destination and, when given, makes that session its selected one. A session id
+    /// that is not in the destination is ignored rather than leaving a dangling selection.
+    func select(_ destination: SessionDestination, sessionID: UUID? = nil) {
+        switch destination {
+        case .workspace(let id):
+            guard let index = state.workspaces.firstIndex(where: { $0.id == id }) else { return }
+            var updated = state
+            updated.selectedWorkspaceID = id
+            if let sessionID, updated.workspaces[index].sessions.contains(where: { $0.id == sessionID }) {
+                updated.workspaces[index].selectedSessionID = sessionID
+            }
+            state = updated
+            showsTemporarySessions = false
+        case .temporary:
+            if let sessionID, temporarySessions.contains(where: { $0.id == sessionID }) {
+                selectedTemporarySessionID = sessionID
+            }
+            showsTemporarySessions = true
+        }
+    }
+
+    /// Steps through the sidebar, wrapping at either end.
+    func selectAdjacentDestination(offset: Int) {
+        let destinations = destinations
+        guard let destination, let current = destinations.firstIndex(of: destination) else { return }
+        let count = destinations.count
+        select(destinations[((current + offset) % count + count) % count])
+    }
+
     func addTemporarySession(_ type: SessionType) {
         let session = Session(type: type)
         temporarySessions.append(session)

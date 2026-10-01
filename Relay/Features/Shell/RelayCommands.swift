@@ -44,6 +44,16 @@ struct ScrollbackSearchAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
+/// Published by the window that owns the store: the quick switcher and next/previous
+/// workspace act on every destination, not just the one on screen.
+struct DestinationSwitchAction: Equatable {
+    let canStep: Bool
+    let showQuickSwitcher: () -> Void
+    let step: (Int) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.canStep == rhs.canStep }
+}
+
 /// Published by the window that owns the store, so the Help menu reports on what is on screen.
 struct DiagnosticsAction: Equatable {
     let show: () -> Void
@@ -58,6 +68,7 @@ extension FocusedValues {
     @Entry var activeTerminal: ActiveTerminalAction?
     @Entry var newSession: NewSessionAction?
     @Entry var scrollbackSearch: ScrollbackSearchAction?
+    @Entry var destinationSwitch: DestinationSwitchAction?
 }
 
 struct RelayCommands: Commands {
@@ -71,6 +82,7 @@ struct RelayCommands: Commands {
     @FocusedValue(\.activeTerminal) private var activeTerminal
     @FocusedValue(\.newSession) private var newSession
     @FocusedValue(\.scrollbackSearch) private var scrollbackSearch
+    @FocusedValue(\.destinationSwitch) private var destinationSwitch
 
     var body: some Commands {
         // Relay has one window, so the File menu's New Window is replaced by the thing a user
@@ -83,6 +95,30 @@ struct RelayCommands: Commands {
                 .keyboardShortcut(shortcut(for: type))
                 .disabled(newSession == nil)
             }
+        }
+        // Printing a terminal is not something Relay offers, and ⌘P belongs to the switcher.
+        CommandGroup(replacing: .printItem) {}
+        // Switching is the product, so it gets its own menu rather than a corner of View.
+        CommandMenu("Go") {
+            Button("Quick Switch…", systemImage: "magnifyingglass") {
+                destinationSwitch?.showQuickSwitcher()
+            }
+            .keyboardShortcut("p", modifiers: .command)
+            .disabled(destinationSwitch == nil)
+            Divider()
+            Button("Previous Session") { stepSession(by: -1) }
+                .keyboardShortcut("[", modifiers: [.command, .shift])
+                .disabled(!canStepSessions)
+            Button("Next Session") { stepSession(by: 1) }
+                .keyboardShortcut("]", modifiers: [.command, .shift])
+                .disabled(!canStepSessions)
+            Divider()
+            Button("Previous Workspace") { destinationSwitch?.step(-1) }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .control])
+                .disabled(destinationSwitch?.canStep != true)
+            Button("Next Workspace") { destinationSwitch?.step(1) }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .control])
+                .disabled(destinationSwitch?.canStep != true)
         }
         // relay.conf clears libghostty's own keybindings so the menu bar owns every Command
         // key; these are the ones worth having back, as discoverable menu items. Each is
@@ -153,6 +189,18 @@ struct RelayCommands: Commands {
     /// The optional-shortcut overload is what allows that, rather than a second Button branch.
     private func shortcut(for type: SessionType) -> KeyboardShortcut? {
         type.id == sessionTypes.defaultType.id ? KeyboardShortcut("n", modifiers: .command) : nil
+    }
+
+    private var canStepSessions: Bool {
+        (sessionSwitch?.titles.count ?? 0) > 1
+    }
+
+    /// Wraps at either end, like tabs in other Mac apps.
+    private func stepSession(by offset: Int) {
+        guard let sessionSwitch, !sessionSwitch.titles.isEmpty else { return }
+        let count = sessionSwitch.titles.count
+        let current = sessionSwitch.selectedIndex ?? 0
+        sessionSwitch.select(((current + offset) % count + count) % count)
     }
 
     private var sessionTitles: [String] {
