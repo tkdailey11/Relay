@@ -39,9 +39,16 @@ struct TerminalSessionTests {
                 == "direct:/opt/homebrew/bin/gh copilot")
     }
 
-    /// A quoted path is a command only a shell can parse, so it keeps the shell form.
-    @Test func commandsNeedingAShellKeepTheShellForm() {
-        #expect(GhosttyRuntime.commandValue(for: "\"/Users/me/My Tools/claude\"")
-                == "shell:\"/Users/me/My Tools/claude\"")
+    /// A quoted path is a command only a shell can parse, so it keeps the shell form, with `env`
+    /// in front to take the dashed argv0 in the program's place.
+    @Test func quotedPathsAreSpawnedThroughEnv() {
+        #expect(GhosttyRuntime.commandValue(for: "\"/Users/me/My Tools/copilot\" --banner")
+                == "shell:/usr/bin/env \"/Users/me/My Tools/copilot\" --banner")
+    }
+
+    /// `env` can only exec a program, so a command led by a builtin keeps the plain shell form.
+    @Test func shellCommandsWithoutAnExecutableArePassedThrough() {
+        #expect(GhosttyRuntime.commandValue(for: "cd ~/src && claude")
+                == "shell:cd ~/src && claude")
     }
 }

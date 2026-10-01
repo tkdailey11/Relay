@@ -213,11 +213,17 @@ final class GhosttyRuntime {
     ///
     /// libghostty splits a `direct:` value on spaces and does no quote handling, so a command
     /// that a shell has to parse — a quoted path for an executable in a directory whose name
-    /// contains a space, a glob, a variable — stays on the `shell:` form and its argv0.
+    /// contains a space, a glob, a variable — stays on the `shell:` form. When that command
+    /// starts with an absolute path, as every resolved one does, `/usr/bin/env` goes in front:
+    /// `env` takes the dashed argv0, which it ignores, and execs the real program with a clean
+    /// one. Anything else, such as a leading builtin, is passed through as written.
     static func commandValue(for command: String) -> String {
         let shellCharacters = Set("\"'$`\\*?|&;<>()[]{}\n\t")
-        let needsShell = command.contains { shellCharacters.contains($0) }
-        return needsShell ? "shell:\(command)" : "direct:\(command)"
+        guard command.contains(where: { shellCharacters.contains($0) }) else {
+            return "direct:\(command)"
+        }
+        let startsWithAbsolutePath = command.hasPrefix("/") || command.hasPrefix("\"/")
+        return startsWithAbsolutePath ? "shell:/usr/bin/env \(command)" : "shell:\(command)"
     }
 
     /// A filesystem-safe directory name per command. Swift's own hashValue is seeded per process,
