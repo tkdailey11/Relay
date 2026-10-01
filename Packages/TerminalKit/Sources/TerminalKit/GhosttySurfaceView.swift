@@ -24,6 +24,7 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
         setAccessibilityElement(true)
         setAccessibilityRole(.textArea)
         setAccessibilityLabel("Terminal")
+        registerForDraggedTypes(TerminalDrop.acceptedTypes)
         NotificationCenter.default.addObserver(self, selector: #selector(windowFocusChanged),
                                               name: NSWindow.didBecomeKeyNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(windowFocusChanged),
@@ -270,6 +271,65 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
         defer { ghostty_surface_free_text(surface, &text) }
         guard let pointer = text.text else { return "" }
         return String(decoding: UnsafeRawBufferPointer(start: pointer, count: Int(text.text_len)), as: UTF8.self)
+    }
+
+    // Drops are typed in as a paste, so file paths reach programs such as agent CLIs that
+    // recognize a pasted image path.
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        surface == nil ? [] : .copy
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard surface != nil else { return false }
+        let pasteboard = sender.draggingPasteboard
+        let files = TerminalDrop.fileURLs(from: pasteboard)
+        if !files.isEmpty {
+            pasteDropped(TerminalDrop.text(forFiles: files))
+        } else if let receivers = pasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self]) as? [NSFilePromiseReceiver],
+                  !receivers.isEmpty {
+            receivePromisedFiles(receivers)
+        } else if let image = TerminalDrop.saveImage(from: pasteboard) {
+            pasteDropped(TerminalDrop.text(forFiles: [image]))
+        } else if let text = pasteboard.string(forType: .URL) ?? pasteboard.string(forType: .string) {
+            pasteDropped(text)
+        } else {
+            return false
+        }
+        return true
+    }
+
+    /// Promised files, such as a screenshot dragged from its floating thumbnail, only exist once
+    /// the source has written them, so each path is pasted as it arrives.
+    private func receivePromisedFiles(_ receivers: [NSFilePromiseReceiver]) {
+        let directory: URL
+        do {
+            directory = try TerminalDrop.makeDropDirectory()
+        } catch {
+            TerminalDiagnostics.error("Could not prepare a folder for dropped files: \(error.localizedDescription)")
+            return
+        }
+        var isFirst = true
+        for receiver in receivers {
+            receiver.receivePromisedFiles(atDestination: directory, operationQueue: .main) { [weak self] url, error in
+                MainActor.assumeIsolated {
+                    if let error {
+                        TerminalDiagnostics.error("Dropped file could not be received: \(error.localizedDescription)")
+                        return
+                    }
+                    self?.pasteDropped((isFirst ? "" : " ") + TerminalDrop.text(forFiles: [url]))
+                    isFirst = false
+                }
+            }
+        }
+    }
+
+    private func pasteDropped(_ text: String) {
+        window?.makeFirstResponder(self)
+        // Deferred so a multi-line paste confirmation never runs modally inside the drag session.
+        DispatchQueue.main.async { [weak self] in
+            guard let surface = self?.surface else { return }
+            text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }
+        }
     }
 
     override func updateTrackingAreas() {
