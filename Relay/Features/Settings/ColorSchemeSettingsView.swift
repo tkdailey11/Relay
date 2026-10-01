@@ -37,9 +37,19 @@ struct ColorSchemeSettingsView: View {
             }
             .padding(16)
             Divider()
+            // A user's own schemes come first so an import lands in view, not below the catalog.
             List(selection: $selection) {
-                ForEach(settings.colorSchemes) { scheme in
-                    row(for: scheme).tag(scheme.id)
+                if !settings.customColorSchemes.isEmpty {
+                    Section("My Schemes") {
+                        ForEach(settings.customColorSchemes) { scheme in
+                            row(for: scheme).tag(scheme.id)
+                        }
+                    }
+                }
+                Section("Built-in") {
+                    ForEach(TerminalColorScheme.builtIn) { scheme in
+                        row(for: scheme).tag(scheme.id)
+                    }
                 }
             }
             .listStyle(.inset(alternatesRowBackgrounds: true))
@@ -189,11 +199,13 @@ struct ColorSchemeSettingsView: View {
 
     private func schemePicker(_ label: String, selection: Binding<String>) -> some View {
         Picker(label, selection: selection) {
-            ForEach(TerminalColorScheme.builtIn) { Text($0.name).tag($0.id) }
+            ForEach([TerminalColorScheme.relayLight, .relayDark]) { Text($0.name).tag($0.id) }
             if !settings.customColorSchemes.isEmpty {
                 Divider()
                 ForEach(settings.customColorSchemes) { Text($0.name).tag($0.id) }
             }
+            Divider()
+            ForEach(TerminalColorScheme.catalog) { Text($0.name).tag($0.id) }
         }
         .labelsHidden()
         .frame(maxWidth: 260)
@@ -209,9 +221,6 @@ struct ColorSchemeSettingsView: View {
             }
             if scheme.id == settings.darkColors.id {
                 badge("Dark", systemImage: "moon")
-            }
-            if scheme.isBuiltIn {
-                Text("Built-in").font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 3)

@@ -132,7 +132,9 @@ immediately. ⌘+, ⌘− and ⌘0 in the View menu move the same preference, so
 with Settings and the change survives a relaunch.
 
 **Settings ▸ Colors** picks the color scheme terminals use in light and in dark mode. Relay Light
-and Relay Dark are built in and fixed; editing one saves a copy. A user can build a scheme there
+and Relay Dark are built in, alongside Catppuccin Latte and Mocha, Dracula, Gruvbox Dark and
+Light, Nord, Solarized Dark and Light, and Tokyo Night and Tokyo Night Day. Built-in schemes are
+fixed; editing one saves a copy. A user can build a scheme there
 (background, foreground, cursor, selection and the 16 ANSI colors) or import iTerm2
 `.itermcolors`, Terminal `.terminal` and Ghostty theme files, by the Add menu or by dropping them
 on the list. Export writes any scheme back out as an iTerm2 or Ghostty file. Custom schemes are JSON under `RelayTerminal.ColorSchemes`, so a bad one can be

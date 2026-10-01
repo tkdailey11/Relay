@@ -61,3 +61,25 @@ struct TerminalColorSchemeTests {
         #expect(colors == palette)
     }
 }
+
+@MainActor
+struct TerminalColorSchemeCatalogTests {
+    /// IDs are what preferences store, so a duplicate would make one scheme unselectable.
+    @Test func builtInIDsAndNamesAreUnique() {
+        let schemes = TerminalColorScheme.builtIn
+        #expect(Set(schemes.map(\.id)).count == schemes.count)
+        #expect(Set(schemes.map(\.name)).count == schemes.count)
+        #expect(schemes.allSatisfy { $0.isBuiltIn })
+    }
+
+    @Test(arguments: TerminalColorScheme.catalog)
+    func catalogSchemeLoadsInLibghostty(scheme: TerminalColorScheme) throws {
+        _ = ghostty_init(0, nil)
+        let config = try GhosttyRuntime.makeConfig(
+            settings: TerminalSettings(lightColors: scheme, darkColors: scheme), command: nil)
+        defer { ghostty_config_free(config) }
+        var background = ghostty_config_color_s()
+        #expect(ghostty_config_get(config, &background, "background", UInt("background".utf8.count)))
+        #expect(TerminalColor(red: background.r, green: background.g, blue: background.b) == scheme.background)
+    }
+}

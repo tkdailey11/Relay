@@ -165,5 +165,6 @@ extension TerminalColorScheme {
         cursor: TerminalColor(hex: "111827")!,
         selectionBackground: TerminalColor(hex: "BFDBFE")!, selectionForeground: TerminalColor(hex: "111827")!)
 
-    public static let builtIn: [TerminalColorScheme] = [relayLight, relayDark]
+    /// Relay's own first, then the catalog.
+    public static let builtIn: [TerminalColorScheme] = [relayLight, relayDark] + catalog
 }
