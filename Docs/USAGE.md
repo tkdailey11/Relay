@@ -42,6 +42,7 @@ Use them for one-off commands that don't belong to a project.
 | Focus Terminal (toggle) | ⇧⌘↩ |
 | New session (default type) | ⌘N |
 | Add Workspace | ⇧⌘O |
+| Relay Help (this guide) | ⌘? |
 
 **Quick Switch** (⌘P) searches workspaces and sessions together. Each word you type narrows the results, so `relay claude` finds the Claude session in the Relay workspace.
 
