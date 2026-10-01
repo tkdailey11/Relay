@@ -29,4 +29,19 @@ struct TerminalSessionTests {
         #expect(session.status == .closed)
         #expect(session.terminalView.surface == nil)
     }
+
+    /// libghostty's `shell:` form launches a command through `exec -l`, whose dash-prefixed argv0
+    /// a Node single-executable CLI such as Copilot rejects as a bad option.
+    @Test func resolvedCommandsAreSpawnedDirectly() {
+        #expect(GhosttyRuntime.commandValue(for: "/Users/me/.local/bin/copilot")
+                == "direct:/Users/me/.local/bin/copilot")
+        #expect(GhosttyRuntime.commandValue(for: "/opt/homebrew/bin/gh copilot")
+                == "direct:/opt/homebrew/bin/gh copilot")
+    }
+
+    /// A quoted path is a command only a shell can parse, so it keeps the shell form.
+    @Test func commandsNeedingAShellKeepTheShellForm() {
+        #expect(GhosttyRuntime.commandValue(for: "\"/Users/me/My Tools/claude\"")
+                == "shell:\"/Users/me/My Tools/claude\"")
+    }
 }

@@ -203,6 +203,23 @@ final class GhosttyRuntime {
         }
     }
 
+    /// libghostty takes an unprefixed `command` as its `shell:` form, which spawns the command
+    /// through `/bin/bash -c "exec -l …"`. `exec -l` hands the program an argv0 prefixed with a
+    /// `-`, and a CLI shipped as a Node single-executable — GitHub Copilot's is one — re-reads
+    /// that argv0 as a node option and dies with `bad option: -/path/to/copilot`. Relay has
+    /// already resolved the executable to an absolute path and needs nothing expanded, so the
+    /// command is handed over as `direct:`, which libghostty passes to `login`/`execvp` with an
+    /// intact argv0.
+    ///
+    /// libghostty splits a `direct:` value on spaces and does no quote handling, so a command
+    /// that a shell has to parse — a quoted path for an executable in a directory whose name
+    /// contains a space, a glob, a variable — stays on the `shell:` form and its argv0.
+    static func commandValue(for command: String) -> String {
+        let shellCharacters = Set("\"'$`\\*?|&;<>()[]{}\n\t")
+        let needsShell = command.contains { shellCharacters.contains($0) }
+        return needsShell ? "shell:\(command)" : "direct:\(command)"
+    }
+
     /// A filesystem-safe directory name per command. Swift's own hashValue is seeded per process,
     /// which would leave a new directory behind on every launch, so this is an explicit FNV-1a.
     private static func directoryName(for command: String) -> String {
@@ -239,7 +256,7 @@ final class GhosttyRuntime {
                 window-padding-y = 8
                 clipboard-read = ask
                 clipboard-write = ask
-                \(command.map { "command = \($0)\n" } ?? "")
+                \(command.map { "command = \(Self.commandValue(for: $0))\n" } ?? "")
                 """.write(to: file, atomically: true, encoding: .utf8)
             try "config-file = \(file.path)\n"
                 .write(to: root.appending(path: "ghostty/config"), atomically: true, encoding: .utf8)
