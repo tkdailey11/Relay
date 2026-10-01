@@ -21,7 +21,12 @@ enum SessionLauncher {
         guard let name = words.first else { return nil }
         if let executable = await LoginShellPath.shared.locate(name) {
             words[0] = quoted(executable.path)
-            let resolved = words.joined(separator: " ")
+            // The spawned process would otherwise inherit Relay's launchd PATH, so a CLI that is
+            // a Node script (`#!/usr/bin/env node`) under nvm starts and then can't find node.
+            // The executable's own directory comes first, which covers a node install that is
+            // only known through a path set in Settings.
+            let searchPath = await LoginShellPath.shared.searchPath(including: executable.deletingLastPathComponent().path)
+            let resolved = "/usr/bin/env PATH=\(singleQuoted(searchPath)) " + words.joined(separator: " ")
             RelayLog.info(.session, "Resolved \(typeName) to \(resolved)")
             return resolved
         }
@@ -32,6 +37,10 @@ enum SessionLauncher {
 
     private static func quoted(_ path: String) -> String {
         path.contains(" ") ? "\"\(path)\"" : path
+    }
+
+    private static func singleQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
     }
 
     enum LaunchError: LocalizedError {
@@ -75,6 +84,11 @@ private actor LoginShellPath {
     /// see" are different claims, and only the second one matters here.
     func describeSearchPath() async -> String {
         await searchPath().joined(separator: ":")
+    }
+
+    /// The PATH a launched CLI runs with, led by `directory`.
+    func searchPath(including directory: String) async -> String {
+        ([directory] + (await searchPath()).filter { $0 != directory }).joined(separator: ":")
     }
 
     private func searchPath() async -> [String] {

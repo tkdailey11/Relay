@@ -12,9 +12,19 @@ struct SessionLauncherTests {
         #expect(try await SessionLauncher.command(for: type(named: "Bare", command: "   ")) == nil)
     }
 
+    /// The words after the `env PATH=…` prefix that every resolved command carries.
+    private func launchedWords(_ command: String?) throws -> [String] {
+        let command = try #require(command)
+        let prefix = "/usr/bin/env PATH='"
+        #expect(command.hasPrefix(prefix))
+        // PATH directories can contain spaces, so the quoted value ends at its closing quote.
+        let end = try #require(command.range(of: "' ", range: command.index(command.startIndex, offsetBy: prefix.count)..<command.endIndex))
+        return command[end.upperBound...].split(separator: " ").map(String.init)
+    }
+
     @Test func resolvesTheCommandToAnAbsolutePath() async throws {
         let command = try await SessionLauncher.command(for: type(named: "Echo", command: "echo"))
-        let executable = try #require(command?.split(separator: " ").first.map(String.init))
+        let executable = try #require(try launchedWords(command).first)
         #expect(executable.hasPrefix("/"))
         #expect(FileManager.default.isExecutableFile(atPath: executable))
     }
@@ -25,7 +35,14 @@ struct SessionLauncherTests {
     }
 
     @Test func anExplicitPathIsUsedAsWritten() async throws {
-        #expect(try await SessionLauncher.command(for: type(named: "Echo", command: "/bin/echo")) == "/bin/echo")
+        let command = try await SessionLauncher.command(for: type(named: "Echo", command: "/bin/echo"))
+        #expect(try launchedWords(command) == ["/bin/echo"])
+    }
+
+    /// Node-script CLIs under nvm find `node` through PATH, not through Relay's own environment.
+    @Test func theCommandRunsWithTheExecutablesDirectoryFirstOnPath() async throws {
+        let command = try await SessionLauncher.command(for: type(named: "Echo", command: "/bin/echo"))
+        #expect(command?.hasPrefix("/usr/bin/env PATH='/bin:") == true)
     }
 
     @Test func aMissingExecutableIsReportedWithTheNameAndType() async {
