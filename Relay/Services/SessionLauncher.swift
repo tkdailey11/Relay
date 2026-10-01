@@ -99,17 +99,21 @@ private actor LoginShellPath {
 
     private static var conventionalDirectories: [String] {
         let home = NSHomeDirectory()
-        return ["\(home)/.local/bin", "\(home)/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+        // ~/.claude/local is where older Claude Code installs live, reached only through an alias.
+        return ["\(home)/.local/bin", "\(home)/.claude/local", "\(home)/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
     }
 
-    /// A login shell runs the user's profile, which is where PATH is usually assembled. A broken
+    /// PATH is read from an interactive login shell, because version managers and npm installs
+    /// usually add to it in .zshrc, which a non-interactive shell never reads. Interactive
+    /// profiles can print banners or prompts, so the value is delimited by markers. A broken
     /// profile would otherwise hang session start, so the shell gets a deadline.
     private static func loginShellPath() async -> [String] {
         await Task.detached(priority: .userInitiated) { () -> [String] in
             let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+            let marker = "__RELAY_PATH__"
             let process = Process()
             process.executableURL = URL(filePath: shell)
-            process.arguments = ["-lc", "printf %s \"$PATH\""]
+            process.arguments = ["-ilc", "printf '\(marker)%s\(marker)' \"$PATH\""]
             let pipe = Pipe()
             process.standardOutput = pipe
             process.standardError = FileHandle.nullDevice
@@ -123,13 +127,18 @@ private actor LoginShellPath {
             let data = (try? pipe.fileHandleForReading.readToEnd()) ?? Data()
             process.waitUntilExit()
             deadline.cancel()
-            guard process.terminationStatus == 0 else {
-                RelayLog.error(.session, "\(shell) -lc exited with status \(process.terminationStatus) while reading PATH; falling back to conventional directories")
+            let output = String(decoding: data, as: UTF8.self)
+            guard let path = extractPath(from: output, marker: marker) else {
+                RelayLog.error(.session, "\(shell) -ilc exited with status \(process.terminationStatus) without reporting PATH; falling back to conventional directories")
                 return []
             }
-            return String(decoding: data, as: UTF8.self)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .split(separator: ":").map(String.init)
+            return path.split(separator: ":").map(String.init)
         }.value
+    }
+
+    static func extractPath(from output: String, marker: String) -> String? {
+        guard let start = output.range(of: marker),
+              let end = output.range(of: marker, range: start.upperBound..<output.endIndex) else { return nil }
+        return String(output[start.upperBound..<end.lowerBound])
     }
 }
