@@ -12,6 +12,7 @@ Workspace  →  Session  →  Terminal
 - **Reorder workspaces** by dragging them in the sidebar, or with **Move Up** / **Move Down** in a workspace's context menu.
 - **Remove a workspace** from its context menu, its ⋯ button, or by pressing ⌫ while it is selected. Relay asks first, and warns you if any of its sessions still have processes running. The folder itself is never touched.
 - **Show in Finder** is in the same menu.
+- **Git branch.** If the workspace is inside a Git repository, its header shows the current branch next to the path (or "detached at" a commit). It updates as soon as you switch branches, including from a Relay terminal. Relay reads this from the repository's files and doesn't need Git installed.
 
 Relay remembers your workspaces, their order, each workspace's sessions, and which ones were selected. After a relaunch, sessions come back as entries, but their processes start fresh. Relay does not keep processes running after it quits.
 
