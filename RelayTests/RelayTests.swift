@@ -164,6 +164,42 @@ struct RelayTests {
         #expect(store.state == snapshot)
     }
 
+    @Test func reorderingWorkspacesKeepsSelectionAndPersists() throws {
+        let url = storageURL()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = WorkspaceStore(fileURL: url)
+        for name in ["first", "second", "third"] { store.addWorkspace(at: URL(filePath: "/tmp/\(name)")) }
+        let (first, second, third) = (store.state.workspaces[0], store.state.workspaces[1], store.state.workspaces[2])
+        store.destination = .workspace(first.id)
+
+        // Dragging the first workspace below the last, as the sidebar's onMove reports it.
+        store.moveWorkspaces(fromOffsets: [0], toOffset: 3)
+        #expect(store.state.workspaces.map(\.id) == [second.id, third.id, first.id])
+        #expect(store.destination == .workspace(first.id))
+        #expect(WorkspaceStore(fileURL: url).state == store.state)
+
+        // Next/previous workspace follows the new order.
+        store.selectAdjacentDestination(offset: -1)
+        #expect(store.destination == .workspace(third.id))
+
+        store.moveWorkspace(first.id, by: -1)
+        #expect(store.state.workspaces.map(\.id) == [second.id, first.id, third.id])
+        store.moveWorkspace(second.id, by: 1)
+        #expect(store.state.workspaces.map(\.id) == [first.id, second.id, third.id])
+        #expect(WorkspaceStore(fileURL: url).state == store.state)
+
+        // Moves past either end, by zero, or of an unknown id change nothing.
+        #expect(!store.canMoveWorkspace(first.id, by: -1))
+        #expect(!store.canMoveWorkspace(third.id, by: 1))
+        #expect(!store.canMoveWorkspace(second.id, by: 0))
+        #expect(!store.canMoveWorkspace(UUID(), by: 1))
+        let snapshot = store.state
+        store.moveWorkspace(first.id, by: -1)
+        store.moveWorkspace(third.id, by: 1)
+        store.moveWorkspace(UUID(), by: 1)
+        #expect(store.state == snapshot)
+    }
+
     @Test func removingAWorkspaceWhileViewingTemporarySessionsStaysThere() throws {
         let store = WorkspaceStore(fileURL: nil)
         store.addWorkspace(at: URL(filePath: "/tmp/first"))

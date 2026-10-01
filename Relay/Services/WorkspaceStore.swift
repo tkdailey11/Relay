@@ -2,6 +2,7 @@ import Darwin
 import TerminalKit
 import Foundation
 import Observation
+import SwiftUI
 
 @MainActor
 @Observable
@@ -114,6 +115,26 @@ final class WorkspaceStore {
             updated.selectedWorkspaceID = neighbor?.id
         }
         state = updated
+    }
+
+    /// Reorders the sidebar. Selection follows ids, so it stays on the same workspace.
+    func moveWorkspaces(fromOffsets source: IndexSet, toOffset destination: Int) {
+        var updated = state
+        updated.workspaces.move(fromOffsets: source, toOffset: destination)
+        state = updated
+    }
+
+    /// Moves one workspace a step up (negative) or down (positive), stopping at either end.
+    func moveWorkspace(_ id: UUID, by offset: Int) {
+        guard canMoveWorkspace(id, by: offset),
+              let index = state.workspaces.firstIndex(where: { $0.id == id }) else { return }
+        // `move(toOffset:)` counts the gap before an element, so moving down skips one further.
+        moveWorkspaces(fromOffsets: [index], toOffset: offset > 0 ? index + offset + 1 : index + offset)
+    }
+
+    func canMoveWorkspace(_ id: UUID, by offset: Int) -> Bool {
+        guard offset != 0, let index = state.workspaces.firstIndex(where: { $0.id == id }) else { return false }
+        return state.workspaces.indices.contains(index + offset)
     }
 
     /// True when removing this workspace would stop a process the user may not expect to lose.

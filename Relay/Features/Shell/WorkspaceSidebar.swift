@@ -26,6 +26,7 @@ struct WorkspaceSidebar: View {
                             .tag(SessionDestination.workspace(workspace.id))
                             .contextMenu { workspaceMenu(workspace) }
                     }
+                    .onMove { store.moveWorkspaces(fromOffsets: $0, toOffset: $1) }
                 }
                 Section {
                     Label("Temporary Sessions", systemImage: "terminal")
@@ -64,6 +65,12 @@ struct WorkspaceSidebar: View {
         Button("Show in Finder", systemImage: "folder") {
             NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: workspace.path)])
         }
+        Divider()
+        // Dragging is the main way to reorder; these keep it reachable without a pointer.
+        Button("Move Up", systemImage: "arrow.up") { store.moveWorkspace(workspace.id, by: -1) }
+            .disabled(!store.canMoveWorkspace(workspace.id, by: -1))
+        Button("Move Down", systemImage: "arrow.down") { store.moveWorkspace(workspace.id, by: 1) }
+            .disabled(!store.canMoveWorkspace(workspace.id, by: 1))
         Divider()
         Button("Remove Workspace", systemImage: "minus.circle", role: .destructive) {
             confirmRemoval(of: workspace)
