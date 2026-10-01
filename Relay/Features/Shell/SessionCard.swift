@@ -30,6 +30,7 @@ struct SessionCard<MenuContent: View>: View {
             }
             .padding(16).frame(minWidth: 184, alignment: .leading)
             .glassEffect(glass, in: RoundedRectangle(cornerRadius: 14))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
             .overlay {
                 RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.08))

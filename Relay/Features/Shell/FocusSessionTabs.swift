@@ -25,6 +25,9 @@ struct FocusSessionTabs: View {
                                 .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                                 .background(isSelected ? Color.accentColor.opacity(0.12) : .clear,
                                             in: RoundedRectangle(cornerRadius: 6))
+                                // A plain button only hit-tests what it draws, and an unselected
+                                // tab's background is clear, so claim the whole tab explicitly.
+                                .contentShape(RoundedRectangle(cornerRadius: 6))
                                 .overlay(alignment: .bottom) {
                                     if isSelected && sessions.count > 1 {
                                         Capsule().fill(Color.accentColor).frame(height: 2)
