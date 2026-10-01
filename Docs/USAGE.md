@@ -22,6 +22,7 @@ Start a session from the **New Session** menu in a workspace's header. It runs i
 
 - **⌘N** starts a new session of the default type (Shell, unless you've disabled it). Every other type is in the **File** menu.
 - **Switch sessions** by clicking their cards, with ⌘1–⌘9 for the first nine, or with ⇧⌘[ / ⇧⌘] for the previous/next one.
+- **Reorder sessions** by dragging their cards (or their tabs in Terminal Focus), or with **Move Left** / **Move Right** in a session's context menu. ⌘1–⌘9 and next/previous follow the new order, and a workspace remembers it.
 - **Rename** or **close** a session from its card's context menu. Relay confirms before closing a session that still has a process running.
 
 ### Temporary sessions

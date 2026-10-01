@@ -9,8 +9,9 @@ final class HelpMenuTests: XCTestCase {
         app.launch()
         defer { app.terminate() }
 
-        app.menuBarItems["Help"].click()
-        app.menuItems["Relay Help"].click()
+        let help = app.menuBarItems["Help"]
+        help.click()
+        help.menuItems["Relay Help"].click()
 
         let window = app.windows["Relay Help"]
         XCTAssertTrue(window.waitForExistence(timeout: 5))

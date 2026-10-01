@@ -10,6 +10,7 @@ struct TerminalPane: View {
     let selectSession: (Session) -> Void
     let renameSession: (Session) -> Void
     let closeSession: (Session) -> Void
+    let moveSession: (Session.ID, Int) -> Void
     @Binding var isExpanded: Bool
     let types: SessionTypeStore
     let addSession: (SessionType) -> Void
@@ -22,7 +23,7 @@ struct TerminalPane: View {
                     FocusSessionTabs(status: terminals.status, resolve: types.resolve,
                                      sessions: sessions, selectedSessionID: selectedSession?.id,
                                      selectSession: selectSession, renameSession: renameSession,
-                                     closeSession: closeSession)
+                                     closeSession: closeSession, moveSession: moveSession)
                 } else {
                     Label(selectedSession.map { $0.title(types.resolve($0)) } ?? "Terminal",
                           systemImage: selectedSession.map { types.resolve($0).symbol } ?? "terminal")

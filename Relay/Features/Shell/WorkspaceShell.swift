@@ -10,6 +10,7 @@ struct WorkspaceShell: View {
     @State private var renameText = ""
     @State private var focusRequest = UUID()
     @State private var scrollbackSearch: ScrollbackSearchItem?
+    @State private var cardReorder = HorizontalReorder(coordinateSpace: "sessionCards", spacing: 12)
     let name: String
     let path: String
     @Binding var sessions: [Session]
@@ -36,7 +37,7 @@ struct WorkspaceShell: View {
             TerminalPane(terminals: terminals, directory: path, focusRequest: focusRequest,
                          selectedSession: selectedSession, sessions: sessions,
                                 selectSession: selectSession, renameSession: beginRenaming,
-                                closeSession: closeSession,
+                                closeSession: closeSession, moveSession: moveSession,
                                 isExpanded: $isTerminalExpanded,
                                 types: types, addSession: addSession)
             if !isTerminalExpanded {
@@ -95,8 +96,12 @@ struct WorkspaceShell: View {
                                     rename: { beginRenaming(session) },
                                     menu: { sessionMenu(session) })
                             .contextMenu { sessionMenu(session) }
+                            .horizontallyReorderable(session.id, order: sessions.map(\.id),
+                                                     using: cardReorder, move: moveSession)
                     }
-                }.padding(3)
+                }
+                .coordinateSpace(.named(cardReorder.coordinateSpace))
+                .padding(3)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -108,6 +113,12 @@ struct WorkspaceShell: View {
         Button("Rename Session…", systemImage: "pencil") {
             beginRenaming(session)
         }
+        Divider()
+        // Dragging is the main way to reorder; these keep it reachable without a pointer.
+        Button("Move Left", systemImage: "arrow.left") { stepSession(session.id, by: -1) }
+            .disabled(!sessions.canMove(session.id, by: -1))
+        Button("Move Right", systemImage: "arrow.right") { stepSession(session.id, by: 1) }
+            .disabled(!sessions.canMove(session.id, by: 1))
         Divider()
         Button("Close Session", systemImage: "xmark", role: .destructive) {
             closeSession(session)
@@ -139,6 +150,18 @@ struct WorkspaceShell: View {
     private func selectSession(_ session: Session) {
         selectedSessionID = session.id
         focusRequest = UUID()
+    }
+
+    /// Card order is what ⌘1–⌘9 and next/previous session follow, and it persists with the
+    /// workspace. Selection is by id, so the selected session stays selected.
+    private func moveSession(_ id: Session.ID, to index: Int) {
+        sessions.move(id, to: index)
+    }
+
+    private func stepSession(_ id: Session.ID, by offset: Int) {
+        guard sessions.canMove(id, by: offset),
+              let index = sessions.firstIndex(where: { $0.id == id }) else { return }
+        withAnimation(.snappy) { moveSession(id, to: index + offset) }
     }
 
     private func beginRenaming(_ session: Session) {

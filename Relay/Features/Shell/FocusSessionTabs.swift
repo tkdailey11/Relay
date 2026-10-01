@@ -8,6 +8,8 @@ struct FocusSessionTabs: View {
     let selectSession: (Session) -> Void
     let renameSession: (Session) -> Void
     let closeSession: (Session) -> Void
+    let moveSession: (Session.ID, Int) -> Void
+    @State private var reorder = HorizontalReorder(coordinateSpace: "focusSessionTabs", spacing: 4)
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -52,13 +54,21 @@ struct FocusSessionTabs: View {
                                 renameSession(session)
                             }
                             Divider()
+                            Button("Move Left", systemImage: "arrow.left") { step(session, by: -1) }
+                                .disabled(!sessions.canMove(session.id, by: -1))
+                            Button("Move Right", systemImage: "arrow.right") { step(session, by: 1) }
+                                .disabled(!sessions.canMove(session.id, by: 1))
+                            Divider()
                             Button("Close Session", systemImage: "xmark", role: .destructive) {
                                 closeSession(session)
                             }
                         }
+                        .horizontallyReorderable(session.id, order: sessions.map(\.id),
+                                                 using: reorder, move: moveSession)
                         .id(session.id)
                     }
                 }
+                .coordinateSpace(.named(reorder.coordinateSpace))
             }
             .scrollIndicators(.hidden)
             .onChange(of: selectedSessionID, initial: true) {
@@ -69,5 +79,10 @@ struct FocusSessionTabs: View {
         }
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func step(_ session: Session, by offset: Int) {
+        guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
+        withAnimation(.snappy) { moveSession(session.id, index + offset) }
     }
 }
