@@ -88,6 +88,21 @@ Apple Silicon only. To ship a universal app, build Ghostty with `-Dxcframework-t
 and drop the `ARCHS=arm64` override in `Scripts/Release.sh`. macOS 26 still runs on some Intel
 Macs, so this matters if any tester is on one.
 
+## Licenses
+
+Relay is MIT licensed (`LICENSE`). The app redistributes libghostty and the libraries and fonts
+compiled into it, whose licenses require their notices to ship with the app.
+`THIRD-PARTY-NOTICES.md` holds those texts, is bundled into the app as a resource, and is shown
+under Help ▸ Third-Party Licenses. `Scripts/Release.sh` refuses to run without it and checks that
+the archived app contains it.
+
+The file is written by hand against the pinned Ghostty release, so it has to be revisited
+whenever `Scripts/BuildGhostty.sh` moves to a new Ghostty version. Compare the dependencies in
+that version's `build.zig.zon` with the sections in the file, and update any version number or
+license text that changed. Dependencies Ghostty only uses for its own command-line or Linux
+builds (libvaxis, zigimg, fontconfig, GTK and Wayland packages) are not linked into the
+embedding library and are not listed.
+
 ## Toolchain
 
 Relay itself builds with the newest installed Xcode, but libghostty does not. Zig 0.14.1, which

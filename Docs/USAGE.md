@@ -105,3 +105,7 @@ Relay looks commands up using the PATH from an interactive login shell, so anyth
 
 **Something else is wrong.**
 Open **Help ▸ Diagnostics…** and copy the report. It includes the PATH Relay sees and the state of each session, which is the most useful thing to send with a bug report.
+
+## About and licenses
+
+Relay is open source under the MIT License. Its terminal is powered by [libghostty](https://github.com/ghostty-org/ghostty), the engine from the Ghostty terminal, which is also MIT licensed. Relay is an independent project and isn't affiliated with Ghostty. **Help ▸ Third-Party Licenses** shows the licenses of everything Relay is built on.

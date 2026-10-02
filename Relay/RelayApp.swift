@@ -78,5 +78,14 @@ struct RelayApp: App {
         .restorationBehavior(.disabled)
         // Help ▸ Relay Help is the way in; without this the Window menu lists it even closed.
         .commandsRemoved()
+
+        // Opened from Help ▸ Third-Party Licenses, and likewise never restored.
+        Window("Third-Party Licenses", id: ThirdPartyNoticesView.windowID) {
+            ThirdPartyNoticesView()
+        }
+        .defaultSize(width: 760, height: 820)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+        .commandsRemoved()
     }
 }

@@ -186,6 +186,7 @@ struct RelayCommands: Commands {
             Divider()
             Button("Diagnostics…") { diagnostics?.show() }
                 .disabled(diagnostics == nil)
+            Button("Third-Party Licenses") { openWindow(id: ThirdPartyNoticesView.windowID) }
         }
         // Font size is a preference rather than a per-surface state, so these move the setting
         // and every open terminal follows.

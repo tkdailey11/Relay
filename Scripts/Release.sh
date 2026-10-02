@@ -32,6 +32,12 @@ if [[ ! -d "Packages/TerminalKit/Vendor/GhosttyKit.xcframework" ]]; then
     echo "libghostty is missing. Run Scripts/BuildGhostty.sh first." >&2
     exit 1
 fi
+# Ghostty and the libraries inside it are redistributed in the app, and their licenses require
+# the notices to ship with it. Fail before the slow archive step rather than after.
+if [[ ! -f LICENSE || ! -f THIRD-PARTY-NOTICES.md ]]; then
+    echo "LICENSE or THIRD-PARTY-NOTICES.md is missing from the repository root." >&2
+    exit 1
+fi
 if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
     echo 'No "Developer ID Application" identity in the keychain. Create one at' >&2
     echo 'developer.apple.com → Certificates, and install it before releasing.' >&2
@@ -73,6 +79,11 @@ xcodebuild -exportArchive \
     -archivePath "$archive" \
     -exportOptionsPlist Scripts/ExportOptions.plist \
     -exportPath "$export_dir"
+
+if [[ ! -s "$app/Contents/Resources/THIRD-PARTY-NOTICES.md" ]]; then
+    echo "The archived app does not contain THIRD-PARTY-NOTICES.md; check the Relay target's Resources phase." >&2
+    exit 1
+fi
 
 echo "==> Verifying the signature before asking Apple to look at it"
 codesign --verify --deep --strict --verbose=2 "$app"
