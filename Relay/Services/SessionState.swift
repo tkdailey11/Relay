@@ -8,6 +8,8 @@ enum SessionState: Equatable {
     case notStarted
     case starting
     case running
+    /// Running, and the program rang the bell or sent a notification since the user last looked.
+    case needsAttention
     case exited(code: Int32?)
     case failed
 
@@ -27,6 +29,7 @@ enum SessionState: Equatable {
         case .notStarted: "Not started"
         case .starting: "Starting"
         case .running: "Running"
+        case .needsAttention: "Needs attention"
         case .exited(let code): TerminalStatus.exited(code: code).label
         case .failed: "Failed"
         }
@@ -45,6 +48,7 @@ enum SessionState: Equatable {
     var color: Color {
         switch self {
         case .running: .green
+        case .needsAttention: .yellow
         case .starting: .orange
         case .failed: .red
         case .exited: isProblem ? .red : .secondary.opacity(0.7)

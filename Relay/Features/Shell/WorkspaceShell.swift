@@ -9,6 +9,7 @@ struct WorkspaceShell: View {
     @State private var showsRenamePrompt = false
     @State private var renameText = ""
     @State private var sessionPendingIcon: Session.ID?
+    @Environment(\.controlActiveState) private var controlActiveState
     @State private var focusRequest = UUID()
     @State private var scrollbackSearch: ScrollbackSearchItem?
     @State private var cardReorder = HorizontalReorder(coordinateSpace: "sessionCards", spacing: 12)
@@ -67,6 +68,11 @@ struct WorkspaceShell: View {
             Text("Leave the name empty to use the session type’s name.")
         }
         .onChange(of: isTerminalExpanded) { focusRequest = UUID() }
+        // A session the user is looking at is no longer waiting for them. A background window
+        // is not looking, so a notification that arrives there stays flagged until they return.
+        .onChange(of: selectedSessionID, initial: true) { acknowledgeSelectedSession() }
+        .onChange(of: controlActiveState) { acknowledgeSelectedSession() }
+        .onChange(of: selectedSessionNeedsAttention) { acknowledgeSelectedSession() }
         .sheet(isPresented: Binding(get: { iconPickerSession != nil },
                                     set: { if !$0 { sessionPendingIcon = nil } })) {
             if let session = iconPickerSession {
@@ -204,6 +210,15 @@ struct WorkspaceShell: View {
         let session = closed.session.duplicate()
         sessions.insert(session, at: min(closed.index, sessions.count))
         selectSession(session)
+    }
+
+    private var selectedSessionNeedsAttention: Bool {
+        selectedSessionID.flatMap { terminals.sessions[$0]?.needsAttention } ?? false
+    }
+
+    private func acknowledgeSelectedSession() {
+        guard controlActiveState == .key, let selectedSessionID else { return }
+        terminals.acknowledgeAttention(for: selectedSessionID)
     }
 
     private var iconPickerSession: Session? {

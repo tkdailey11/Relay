@@ -29,6 +29,11 @@ struct SessionStateTests {
         #expect(!SessionState.starting.isProblem)
     }
 
+    @Test func needsAttentionIsNotAProblemButIsLabelled() {
+        #expect(SessionState.needsAttention.label == "Needs attention")
+        #expect(!SessionState.needsAttention.isProblem)
+    }
+
     @Test func aPreviewManagerReportsPreview() {
         let manager = TerminalSessionManager(allowsLaunching: false)
         let session = Session(type: .shellPreset)

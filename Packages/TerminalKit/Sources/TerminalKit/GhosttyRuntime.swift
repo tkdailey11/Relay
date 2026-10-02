@@ -66,8 +66,12 @@ final class GhosttyRuntime {
                      GHOSTTY_ACTION_CELL_SIZE, GHOSTTY_ACTION_INITIAL_SIZE,
                      GHOSTTY_ACTION_SIZE_LIMIT:
                     return true
+                case GHOSTTY_ACTION_DESKTOP_NOTIFICATION:
+                    view.attentionRequested()
+                    return true
                 case GHOSTTY_ACTION_RING_BELL:
                     NSSound.beep()
+                    view.attentionRequested()
                     return true
                 default:
                     return false

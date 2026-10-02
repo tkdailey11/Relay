@@ -65,4 +65,20 @@ struct TerminalSessionTests {
         session.updateStatus(.exited(code: nil))
         #expect(session.status == .exited(code: 2))
     }
+
+    @Test func attentionStaysUntilAcknowledged() throws {
+        let session = try TerminalSession(workingDirectory: FileManager.default.temporaryDirectory)
+        #expect(!session.needsAttention)
+        session.requestAttention()
+        #expect(session.needsAttention)
+        session.acknowledgeAttention()
+        #expect(!session.needsAttention)
+    }
+
+    @Test func aClosedSessionIgnoresAttention() throws {
+        let session = try TerminalSession(workingDirectory: FileManager.default.temporaryDirectory)
+        session.close()
+        session.requestAttention()
+        #expect(!session.needsAttention)
+    }
 }

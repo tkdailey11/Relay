@@ -35,8 +35,9 @@ struct SessionCard<MenuContent: View>: View {
             .glassEffect(glass, in: RoundedRectangle(cornerRadius: 14))
             .contentShape(RoundedRectangle(cornerRadius: 14))
             .overlay {
+                // A waiting session outranks selection: this is the card the user needs to find.
                 RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.08))
+                    .strokeBorder(borderColor, lineWidth: needsAttention ? 2 : 1)
             }
         }
         .buttonStyle(.plain).onHover { isHovered = $0 }
@@ -60,11 +61,19 @@ struct SessionCard<MenuContent: View>: View {
         isSelected ? [.isButton, .isSelected] : .isButton
     }
 
+    private var needsAttention: Bool { state == .needsAttention }
+
+    private var borderColor: Color {
+        if needsAttention { return state.color }
+        return isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.08)
+    }
+
     /// Selection is carried by a tint rather than a heavier material, so a row of cards
     /// stays calm and the selected one still reads at a glance.
     private var glass: Glass {
-        isSelected ? .regular.tint(Color.accentColor.opacity(0.25)).interactive()
-                   : .regular.interactive()
+        if needsAttention { return .regular.tint(state.color.opacity(0.18)).interactive() }
+        return isSelected ? .regular.tint(Color.accentColor.opacity(0.25)).interactive()
+                          : .regular.interactive()
     }
 
     private var optionsButton: some View {

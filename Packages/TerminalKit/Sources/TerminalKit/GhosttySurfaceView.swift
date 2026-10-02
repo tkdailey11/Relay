@@ -100,6 +100,12 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
         removeFromSuperview()
     }
 
+    /// A bell or desktop notification: how agent CLIs say they are waiting on the user.
+    func attentionRequested() {
+        TerminalDiagnostics.info("Attention requested by \(command ?? "the login shell")")
+        DispatchQueue.main.async { [weak self] in self?.session?.requestAttention() }
+    }
+
     func processExited(code: Int32?) {
         TerminalDiagnostics.info("Process exited\(code.map { " with code \($0)" } ?? "") for \(command ?? "the login shell")")
         // Never destroy a surface synchronously inside one of its C callbacks.

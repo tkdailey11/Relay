@@ -7,6 +7,9 @@ import Observation
 @Observable
 public final class TerminalSession {
     public private(set) var status: TerminalStatus = .starting
+    /// True after the program rang the bell or sent a desktop notification and nobody has
+    /// acknowledged it. Kept apart from `status`, which is only about the process.
+    public private(set) var needsAttention = false
     public let workingDirectory: URL
     /// nil launches the user's login shell.
     public let command: String?
@@ -62,6 +65,15 @@ public final class TerminalSession {
     public func close() {
         terminalView.close()
         status = .closed
+    }
+
+    public func acknowledgeAttention() {
+        if needsAttention { needsAttention = false }
+    }
+
+    func requestAttention() {
+        guard status != .closed else { return }
+        needsAttention = true
     }
 
     func updateStatus(_ status: TerminalStatus) {

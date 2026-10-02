@@ -22,14 +22,19 @@ struct WorkspaceSidebar: View {
             List(selection: $store.destination) {
                 Section("Workspaces") {
                     ForEach(store.state.workspaces) { workspace in
-                        WorkspaceRow(workspace: workspace) { workspaceMenu(workspace) }
+                        WorkspaceRow(workspace: workspace,
+                                     needsAttention: store.terminals.needsAttention(in: workspace.sessions)) { workspaceMenu(workspace) }
                             .tag(SessionDestination.workspace(workspace.id))
                             .contextMenu { workspaceMenu(workspace) }
                     }
                     .onMove { store.moveWorkspaces(fromOffsets: $0, toOffset: $1) }
                 }
                 Section {
-                    Label("Temporary Sessions", systemImage: "terminal")
+                    HStack {
+                        Label("Temporary Sessions", systemImage: "terminal")
+                        Spacer(minLength: 0)
+                        AttentionDot(isVisible: store.terminals.needsAttention(in: store.temporarySessions))
+                    }
                         .padding(.vertical, 6)
                         .tag(SessionDestination.temporary)
                 }
@@ -156,6 +161,7 @@ struct WorkspaceSidebar: View {
 
 private struct WorkspaceRow<MenuContent: View>: View {
     let workspace: Workspace
+    let needsAttention: Bool
     @ViewBuilder let menu: () -> MenuContent
     @State private var isHovered = false
 
@@ -171,6 +177,7 @@ private struct WorkspaceRow<MenuContent: View>: View {
                 Image(systemName: "folder").foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
+            AttentionDot(isVisible: needsAttention)
             OptionsMenuButton(isHovered: isHovered,
                               accessibilityTitle: "\(workspace.name) workspace options",
                               menu: menu)
@@ -178,5 +185,18 @@ private struct WorkspaceRow<MenuContent: View>: View {
         .padding(.vertical, 6)
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
+    }
+}
+
+/// Marks a sidebar row that holds a session waiting on the user, since only the selected
+/// destination's sessions are on screen.
+private struct AttentionDot: View {
+    let isVisible: Bool
+
+    var body: some View {
+        if isVisible {
+            Circle().fill(SessionState.needsAttention.color).frame(width: 8, height: 8)
+                .accessibilityLabel("Needs attention")
+        }
     }
 }

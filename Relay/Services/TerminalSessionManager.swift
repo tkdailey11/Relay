@@ -50,7 +50,18 @@ final class TerminalSessionManager {
         if !allowsLaunching { return .preview }
         if errors[session.id] != nil { return .failed }
         if preparing.contains(session.id) { return .starting }
-        return sessions[session.id].map { SessionState($0.status) } ?? .notStarted
+        guard let terminal = sessions[session.id] else { return .notStarted }
+        let state = SessionState(terminal.status)
+        return state == .running && terminal.needsAttention ? .needsAttention : state
+    }
+
+    func acknowledgeAttention(for id: Session.ID) {
+        sessions[id]?.acknowledgeAttention()
+    }
+
+    /// For a workspace row, which has to show that something inside it wants the user.
+    func needsAttention(in sessions: [Session]) -> Bool {
+        sessions.contains { state(for: $0) == .needsAttention }
     }
 
     func status(for session: Session) -> String {
