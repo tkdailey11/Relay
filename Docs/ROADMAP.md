@@ -156,6 +156,28 @@ Possible future session providers:
 
 Relay should not hard-code itself around any single AI vendor.
 
+# On-Device Intelligence (Cross-Cutting)
+
+This is a track that rides along with other releases, not a numbered version. It explores using Apple's `FoundationModels` framework (the on-device Apple Intelligence model) where it makes switching between sessions faster. Do not add AI features for their own sake.
+
+Potential features:
+
+- Suggested session names (0.3, alongside Git and working-directory detection). Use cwd, branch, and foreground process first; use the model only when those give no useful name. Suggest, never auto-rename.
+- "What happened" summaries for background sessions (0.4, alongside agent awareness). When a session needs attention or exits, show a one-line summary of its recent output, such as why a build failed. Also a "where you left off" line when reopening a workspace.
+- Natural-language command palette queries, such as "the session running the dev server". Only used when ordinary matching finds nothing, and only resolves to existing sessions and palette commands.
+
+Principles:
+
+- On-device only. Terminal output can contain secrets; it must never leave the Mac.
+- Optional. Check model availability and fall back to the non-AI behavior on unsupported Macs or when Apple Intelligence is off. The no-AI path is the default experience.
+- Suggestions only. The model never runs commands or changes state without the user confirming.
+- Isolated. Keep `FoundationModels` behind a small protocol in `Services/`, as with libghostty and `TerminalKit`. Product UI and domain models must not depend on it directly.
+- Mind the small context window. Strip ANSI sequences, send only the recent tail of output, redact obvious secrets, and cache results per session. Regenerate on state transitions, not on every output chunk.
+- Structured process or integration signals decide *when* to summarize; the model only decides *what to say*. This keeps summaries from becoming the fragile terminal text scraping that 0.4 warns against.
+- Do not persist generated summaries to disk without a deliberate decision, since they may contain sensitive text.
+
+Not planned: natural-language-to-shell-command generation, autocomplete, or a general chat sidebar.
+
 # 1.0 — Product Standard
 
 Relay 1.0 should mean:
