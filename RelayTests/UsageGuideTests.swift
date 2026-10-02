@@ -67,4 +67,17 @@ struct UsageGuideTests {
         #expect(!tables.isEmpty)
         #expect(tables.allSatisfy { $0.map(plain) == ["Action", "Shortcut"] })
     }
+
+    /// The notices are legal text that licenses require to ship, so a build that drops the file,
+    /// or a parse that mangles a license into prose, has to fail here and not in a tester's hands.
+    @Test func theBundledLicenseNoticesLoadWithTheirTextIntact() throws {
+        let blocks = try UsageGuide.load(resource: "THIRD-PARTY-NOTICES")
+        #expect(blocks.first == .heading(level: 1, text: "Third-Party Notices"))
+        let licenses = blocks.compactMap { block -> String? in
+            if case .code(let text) = block { text } else { nil }
+        }
+        #expect(licenses.count >= 20)
+        #expect(licenses.contains { $0.hasPrefix("MIT License") && $0.contains("Mitchell Hashimoto") })
+        #expect(licenses.contains { $0.contains("SIL OPEN FONT LICENSE") || $0.contains("SIL Open Font License") })
+    }
 }

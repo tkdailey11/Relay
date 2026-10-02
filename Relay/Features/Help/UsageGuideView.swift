@@ -9,21 +9,31 @@ struct UsageGuideView: View {
     var body: some View {
         switch guide {
         case .success(let blocks):
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                        BlockView(block: block)
-                    }
-                }
-                // A readable line length; wider windows just get more margin.
-                .frame(maxWidth: 680, alignment: .leading)
-                .padding(.horizontal, 32).padding(.vertical, 28)
-                .frame(maxWidth: .infinity)
-                .textSelection(.enabled)
-            }
+            GuideBlocksView(blocks: blocks)
         case .failure(let error):
             ContentUnavailableView("Help Isn’t Available", systemImage: "questionmark.circle",
                                    description: Text(error.localizedDescription))
+        }
+    }
+}
+
+/// The scrolling page both Help windows draw their blocks into. Lazy, because the license
+/// notices hold a few blocks of over a thousand lines each.
+struct GuideBlocksView: View {
+    let blocks: [UsageGuide.Block]
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                    BlockView(block: block)
+                }
+            }
+            // A readable line length; wider windows just get more margin.
+            .frame(maxWidth: 680, alignment: .leading)
+            .padding(.horizontal, 32).padding(.vertical, 28)
+            .frame(maxWidth: .infinity)
+            .textSelection(.enabled)
         }
     }
 }

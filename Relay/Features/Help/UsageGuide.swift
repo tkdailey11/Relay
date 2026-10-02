@@ -23,8 +23,10 @@ enum UsageGuide {
         var errorDescription: String? { "The Relay guide isn’t included in this build." }
     }
 
-    static func load(from bundle: Bundle = .main) throws -> [Block] {
-        guard let url = bundle.url(forResource: "USAGE", withExtension: "md") else { throw LoadError.missing }
+    /// `resource` is any bundled markdown file; Help loads `USAGE.md` and the license notices
+    /// window loads `THIRD-PARTY-NOTICES.md`, so both are drawn the same way.
+    static func load(resource: String = "USAGE", from bundle: Bundle = .main) throws -> [Block] {
+        guard let url = bundle.url(forResource: resource, withExtension: "md") else { throw LoadError.missing }
         return try blocks(from: String(contentsOf: url, encoding: .utf8))
     }
 
