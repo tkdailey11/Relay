@@ -39,7 +39,7 @@ Use them for one-off commands that don't belong to a project.
 
 | Action | Shortcut |
 | --- | --- |
-| Quick Switch to any workspace or session | ⌘P |
+| Quick Switch: jump to anything or run a command | ⌘P |
 | Previous / next workspace | ⌃⌘↑ / ⌃⌘↓ |
 | Previous / next session | ⇧⌘[ / ⇧⌘] |
 | Jump to session 1–9 | ⌘1 – ⌘9 |
@@ -50,7 +50,11 @@ Use them for one-off commands that don't belong to a project.
 | Add Workspace | ⇧⌘O |
 | Relay Help (this guide) | ⌘? |
 
-**Quick Switch** (⌘P) searches workspaces and sessions together. Each word you type narrows the results, so `relay claude` finds the Claude session in the Relay workspace.
+**Quick Switch** (⌘P) is Relay's command palette: one search box for every workspace, session, and command. Each word you type narrows the results, so `relay claude` finds the Claude session in the Relay workspace, and `dup` finds Duplicate Session. Press Return to jump or run it. Typing a name lists the matching workspaces and sessions first, with commands after; typing a verb such as `new`, `rename`, `close`, `reopen`, `focus`, or `settings` finds the command.
+
+Commands cover starting a session of any type in the current workspace, renaming, changing the icon of, duplicating, or closing the selected session, reopening the last closed one, adding a workspace, toggling Terminal Focus, and opening Settings. Each shows its keyboard shortcut when it has one, and a command with nothing to act on, such as Rename with no session selected, is left out.
+
+Before you type, the list starts with **Needs Attention** (sessions waiting on you, also marked with a yellow dot, and searchable as `attention`), then **Recent** (the last few places you jumped to from the palette, until you quit), then everything else.
 
 **Terminal Focus** (⇧⌘↩, or the expand button in the terminal's title bar) hides the sidebar, header, and session cards so the terminal gets the whole window. Your sessions appear as compact tabs, and you can still create, close, and switch sessions from there. Esc deliberately does *not* leave focus mode, because Esc belongs to the terminal (vim and other full-screen programs need it).
 

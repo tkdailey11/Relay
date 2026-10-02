@@ -19,7 +19,7 @@ struct QuickSwitcherTests {
         let titles = items(temporary: [temporary]).map(\.title)
         #expect(titles == ["Relay", "Shell", "Claude", "Homelab", "Temporary Sessions", "Shell"])
         let claudeItem = items().first { $0.sessionID == claude.id }
-        #expect(claudeItem?.shortcutNumber == 2)
+        #expect(claudeItem?.shortcut == "⌘2")
         #expect(claudeItem?.subtitle == "Relay")
     }
 
@@ -80,5 +80,101 @@ struct QuickSwitcherTests {
         #expect(store.destination == .workspace(first.id))
         store.selectAdjacentDestination(offset: -1)
         #expect(store.destination == .temporary)
+    }
+
+    // MARK: Commands
+
+    private func context(selected: String? = "Claude", closed: String? = nil,
+                         focused: Bool? = false) -> PaletteContext {
+        PaletteContext(sessionTypes: Array(SessionType.presets.prefix(2)), defaultTypeID: "claude",
+                       destinationName: "Relay", selectedSessionTitle: selected,
+                       closedSessionTitle: closed, isTerminalFocused: focused)
+    }
+
+    private func palette(_ context: PaletteContext) -> [QuickSwitcherItem] {
+        items() + QuickSwitcher.commands(context)
+    }
+
+    @Test func commandsActOnlyOnWhatExists() {
+        let titles = QuickSwitcher.commands(context(selected: nil, focused: nil)).map(\.title)
+        #expect(titles.contains("New Claude Session"))
+        #expect(titles.contains("Add Workspace…"))
+        #expect(!titles.contains("Rename Session…"))
+        #expect(!titles.contains("Reopen Closed Session"))
+        #expect(!titles.contains("Focus Terminal"))
+
+        let full = QuickSwitcher.commands(context(closed: "Shell", focused: true)).map(\.title)
+        #expect(full.contains("Duplicate Session"))
+        #expect(full.contains("Reopen Closed Session"))
+        #expect(full.contains("Exit Terminal Focus"))
+    }
+
+    @Test func aVerbFindsItsCommand() {
+        let results = QuickSwitcher.filter(palette(context()), query: "dup")
+        #expect(results.first?.command == .duplicateSession)
+        #expect(results.first?.shortcut == "⇧⌘D")
+        // Words that are not in the title still find it.
+        #expect(QuickSwitcher.filter(palette(context()), query: "clone").first?.command == .duplicateSession)
+        #expect(QuickSwitcher.filter(palette(context()), query: "new copilot").first?.command
+                == .newSession(typeID: "copilot"))
+    }
+
+    @Test func aNameFindsTheSessionBeforeAnyCommand() {
+        let results = QuickSwitcher.filter(palette(context()), query: "claude")
+        #expect(results.first?.sessionID == claude.id)
+        // The session a command acts on is not a reason for the command to match its name.
+        #expect(!results.contains { $0.command == .closeSession })
+    }
+
+    @Test func commandsDoNotMatchBySubsequence() {
+        #expect(QuickSwitcher.filter(palette(context()), query: "cse").allSatisfy { $0.command == nil })
+    }
+
+    // MARK: Status, recents and sections
+
+    @Test func aWaitingSessionIsFlaggedAndSearchableAsWaiting() {
+        let all = QuickSwitcher.items(
+            workspaces: [Workspace(name: "Relay", path: "/code/Relay", sessions: [shell, claude])],
+            temporarySessions: [],
+            resolve: SessionTypeStore(defaults: UserDefaults(suiteName: "QuickSwitcherTests-\(UUID())")!).resolve,
+            state: { $0.id == claude.id ? .needsAttention : .running })
+        #expect(all.first { $0.sessionID == claude.id }?.needsAttention == true)
+        // The workspace holding it is flagged too, so it can be found from anywhere.
+        #expect(all.first { $0.title == "Relay" }?.needsAttention == true)
+        #expect(all.first { $0.sessionID == shell.id }?.needsAttention == false)
+        #expect(QuickSwitcher.filter(all, query: "attention").map(\.sessionID) == [claude.id])
+    }
+
+    @Test func anEmptyQueryLeadsWithWaitingSessionsThenRecents() {
+        var all = palette(context())
+        let index = all.firstIndex { $0.sessionID == claude.id }!
+        all[index].needsAttention = true
+        let homelab = all.first { $0.title == "Homelab" }!
+
+        let sections = QuickSwitcher.sections(all, query: "", recents: [homelab.id, claude.id.uuidString])
+        #expect(sections.map(\.title) == ["Needs Attention", "Recent", "Workspaces & Sessions", "Commands"])
+        #expect(sections[0].items.map(\.sessionID) == [claude.id])
+        // A waiting session is shown once, not again under Recent.
+        #expect(sections[1].items.map(\.title) == ["Homelab"])
+        let everything = sections.flatMap(\.items).map(\.id)
+        #expect(Set(everything).count == everything.count)
+        #expect(everything.count == all.count)
+    }
+
+    @Test func searchingIsOneFlatList() {
+        let sections = QuickSwitcher.sections(palette(context()), query: "relay")
+        #expect(sections.count == 1)
+        #expect(sections[0].title == nil)
+        #expect(QuickSwitcher.sections(palette(context()), query: "zzzzzz").isEmpty)
+    }
+
+    @Test func recentChoicesWinTies() {
+        let all = items()
+        let shellItem = all.first { $0.sessionID == shell.id }!
+        let claudeItem = all.first { $0.sessionID == claude.id }!
+        // Both sessions match "relay" equally; the one chosen last comes first.
+        let results = QuickSwitcher.filter(all, query: "relay", recents: [claudeItem.id, shellItem.id])
+        let sessions = results.filter { $0.sessionID != nil }.map(\.sessionID)
+        #expect(sessions == [claude.id, shell.id])
     }
 }

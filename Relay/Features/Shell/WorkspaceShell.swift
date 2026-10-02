@@ -20,6 +20,8 @@ struct WorkspaceShell: View {
     @Binding var closedSessions: [ClosedSession]
     var isTemporary = false
     @Binding var isTerminalExpanded: Bool
+    /// Set by the command palette; taken and cleared here, where the session prompts live.
+    @Binding var paletteCommand: PaletteCommand?
     let types: SessionTypeStore
     let addSession: (SessionType) -> Void
     private var selectedSession: Session? {
@@ -68,6 +70,11 @@ struct WorkspaceShell: View {
             Text("Leave the name empty to use the session type’s name.")
         }
         .onChange(of: isTerminalExpanded) { focusRequest = UUID() }
+        .onChange(of: paletteCommand) { _, command in
+            guard let command else { return }
+            paletteCommand = nil
+            run(command)
+        }
         // A session the user is looking at is no longer waiting for them. A background window
         // is not looking, so a notification that arrives there stays flagged until they return.
         .onChange(of: selectedSessionID, initial: true) { acknowledgeSelectedSession() }
@@ -210,6 +217,18 @@ struct WorkspaceShell: View {
         let session = closed.session.duplicate()
         sessions.insert(session, at: min(closed.index, sessions.count))
         selectSession(session)
+    }
+
+    private func run(_ command: PaletteCommand) {
+        switch command {
+        case .reopenClosedSession:
+            if let closed = closedSessions.first { reopenSession(closed.id) }
+        case .renameSession: selectedSession.map(beginRenaming)
+        case .changeIcon: selectedSession.map(beginChangingIcon)
+        case .duplicateSession: selectedSession.map(duplicateSession)
+        case .closeSession: selectedSession.map(closeSession)
+        default: break
+        }
     }
 
     private var selectedSessionNeedsAttention: Bool {

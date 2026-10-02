@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Type to filter every workspace and session, then Return to jump there. The jump itself is
-/// left to `choose`, which the caller applies once the sheet has gone so the terminal it lands
-/// on can take focus in a key window.
+/// Type to filter every workspace, session and command, then Return to jump or run it. The
+/// action itself is left to `choose`, which the caller applies once the sheet has gone so the
+/// terminal it lands on can take focus in a key window.
 struct QuickSwitcherView: View {
     let items: [QuickSwitcherItem]
+    /// Most recently chosen first, so an empty query can open on where the user has been.
+    var recents: [String] = []
     /// Where the highlight starts, so an empty query opens on what is already showing.
     let currentItemID: String?
     let choose: (QuickSwitcherItem) -> Void
@@ -13,15 +15,19 @@ struct QuickSwitcherView: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var isSearchFocused: Bool
 
+    private var sections: [QuickSwitcherSection] {
+        QuickSwitcher.sections(items, query: query, recents: recents)
+    }
+
     private var matches: [QuickSwitcherItem] {
-        QuickSwitcher.filter(items, query: query)
+        sections.flatMap(\.items)
     }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Jump to a workspace or session", text: $query)
+                TextField("Jump to a workspace or session, or run a command", text: $query)
                     .textFieldStyle(.plain)
                     .font(.title3)
                     .focused($isSearchFocused)
@@ -40,7 +46,7 @@ struct QuickSwitcherView: View {
             Divider()
             HStack(spacing: 16) {
                 hint("↑↓", "Navigate")
-                hint("↩", "Open")
+                hint("↩", "Go or run")
                 hint("esc", "Close")
                 Spacer()
             }
@@ -61,15 +67,25 @@ struct QuickSwitcherView: View {
         if matches.isEmpty {
             VStack(spacing: 8) {
                 Image(systemName: "questionmark.circle").font(.largeTitle).foregroundStyle(.tertiary)
-                Text("No matching workspaces or sessions.").foregroundStyle(.secondary)
+                Text("Nothing matches.").foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 2) {
-                        ForEach(matches) { item in
-                            row(item).id(item.id)
+                        ForEach(sections) { section in
+                            if let title = section.title {
+                                Text(title.uppercased())
+                                    .font(.caption2).bold().foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 2)
+                                    .accessibilityAddTraits(.isHeader)
+                            }
+                            ForEach(section.items) { item in
+                                row(item, indented: section.indentsSessions && item.sessionID != nil)
+                                    .id(item.id)
+                            }
                         }
                     }
                     .padding(8)
@@ -81,7 +97,7 @@ struct QuickSwitcherView: View {
         }
     }
 
-    private func row(_ item: QuickSwitcherItem) -> some View {
+    private func row(_ item: QuickSwitcherItem, indented: Bool) -> some View {
         let isHighlighted = item.id == highlightedID
         return Button {
             choose(item)
@@ -99,20 +115,24 @@ struct QuickSwitcherView: View {
                         .lineLimit(1).truncationMode(.middle)
                 }
                 Spacer()
-                if let number = item.shortcutNumber {
-                    Text("⌘\(number)").font(.caption.monospaced())
+                if item.needsAttention {
+                    Circle().fill(SessionState.needsAttention.color).frame(width: 8, height: 8)
+                        .accessibilityLabel("Needs attention")
+                }
+                if let shortcut = item.shortcut {
+                    Text(shortcut).font(.caption.monospaced())
                         .foregroundStyle(isHighlighted ? .white.opacity(0.8) : .secondary)
                 }
             }
             // Sessions sit under their destination, as they do in the sidebar's mental model.
-            .padding(.leading, item.sessionID == nil ? 8 : 28)
+            .padding(.leading, indented ? 28 : 8)
             .padding(.trailing, 8).padding(.vertical, 6)
             .foregroundStyle(isHighlighted ? .white : .primary)
             .background(isHighlighted ? Color.accentColor : .clear, in: .rect(cornerRadius: 6))
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(item.title), \(item.subtitle)")
+        .accessibilityLabel("\(item.title), \(item.subtitle)" + (item.needsAttention ? ", needs attention" : ""))
         .accessibilityAddTraits(isHighlighted ? .isSelected : [])
     }
 

@@ -13,6 +13,12 @@ struct ContentView: View {
     /// Applied when the switcher's sheet closes, so the terminal it lands on takes focus in a
     /// key window instead of behind the sheet.
     @State private var pendingSwitch: QuickSwitcherItem?
+    /// Most recently jumped-to first, for this launch only.
+    @State private var recentItemIDs: [String] = []
+    /// A command for the workspace shell to run, which owns the prompts and confirmations that
+    /// act on a session. The shell clears it as it takes it.
+    @State private var paletteCommand: PaletteCommand?
+    @Environment(\.openSettings) private var openSettings
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var sidebarVisibilityBeforeFocus = NavigationSplitViewVisibility.all
     private var selectedIndex: Int? {
@@ -41,7 +47,8 @@ struct ContentView: View {
             step: store.selectAdjacentDestination
         ))
         .sheet(isPresented: $isShowingQuickSwitcher, onDismiss: applyPendingSwitch) {
-            QuickSwitcherView(items: quickSwitcherItems, currentItemID: currentSwitcherItemID,
+            QuickSwitcherView(items: quickSwitcherItems, recents: recentItemIDs,
+                              currentItemID: currentSwitcherItemID,
                               choose: { pendingSwitch = $0 })
         }
         .focusedSceneValue(\.terminalFocus, isShowingShell
@@ -82,6 +89,7 @@ struct ContentView: View {
                            selectedSessionID: $store.selectedTemporarySessionID,
                            closedSessions: closedSessions(for: .temporary),
                            isTemporary: true, isTerminalExpanded: $isTerminalExpanded,
+                           paletteCommand: $paletteCommand,
                            types: sessionTypes,
                            addSession: store.addTemporarySession)
         } else if let index = selectedIndex {
@@ -91,6 +99,7 @@ struct ContentView: View {
                            selectedSessionID: $store.state.workspaces[index].selectedSessionID,
                            closedSessions: closedSessions(for: .workspace(workspace.id)),
                            isTerminalExpanded: $isTerminalExpanded,
+                           paletteCommand: $paletteCommand,
                            types: sessionTypes,
                            addSession: { store.addSession($0, to: workspace.id) })
         } else {
@@ -115,7 +124,27 @@ struct ContentView: View {
 
     private var quickSwitcherItems: [QuickSwitcherItem] {
         QuickSwitcher.items(workspaces: workspaces, temporarySessions: store.temporarySessions,
-                            resolve: sessionTypes.resolve)
+                            resolve: sessionTypes.resolve, state: store.terminals.state(for:))
+            + QuickSwitcher.commands(paletteContext)
+    }
+
+    private var paletteContext: PaletteContext {
+        let isTemporary = store.destination == .temporary
+        let sessions = isTemporary ? store.temporarySessions
+            : selectedIndex.map { workspaces[$0].sessions } ?? []
+        let selectedID = isTemporary ? store.selectedTemporarySessionID
+            : selectedIndex.flatMap { workspaces[$0].selectedSessionID }
+        let selected = sessions.first { $0.id == selectedID }
+        let closedKey: SessionDestination? = isTemporary ? .temporary
+            : selectedIndex.map { .workspace(workspaces[$0].id) }
+        let closed = closedKey.flatMap { store.closedSessions[$0]?.first }?.session
+        return PaletteContext(
+            sessionTypes: sessionTypes.enabled, defaultTypeID: sessionTypes.defaultType.id,
+            destinationName: isTemporary ? "Temporary Sessions"
+                : selectedIndex.map { workspaces[$0].name } ?? "Temporary Sessions",
+            selectedSessionTitle: selected.map { $0.title(sessionTypes.resolve($0)) },
+            closedSessionTitle: closed.map { $0.title(sessionTypes.resolve($0)) },
+            isTerminalFocused: isShowingShell ? isTerminalExpanded : nil)
     }
 
     private var currentSwitcherItemID: String? {
@@ -129,7 +158,42 @@ struct ContentView: View {
     private func applyPendingSwitch() {
         guard let pendingSwitch else { return }
         self.pendingSwitch = nil
-        store.select(pendingSwitch.destination, sessionID: pendingSwitch.sessionID)
+        switch pendingSwitch.kind {
+        case .destination(let destination):
+            remember(pendingSwitch)
+            store.select(destination)
+        case .session(let destination, let sessionID):
+            remember(pendingSwitch)
+            store.select(destination, sessionID: sessionID)
+        case .command(let command):
+            run(command)
+        }
+    }
+
+    private func remember(_ item: QuickSwitcherItem) {
+        recentItemIDs.removeAll { $0 == item.id }
+        recentItemIDs.insert(item.id, at: 0)
+        if recentItemIDs.count > 8 { recentItemIDs.removeLast() }
+    }
+
+    private func run(_ command: PaletteCommand) {
+        switch command {
+        case .newSession(let typeID):
+            guard let type = sessionTypes.enabled.first(where: { $0.id == typeID }) else { return }
+            if store.destination == .temporary || selectedIndex == nil {
+                store.addTemporarySession(type)
+            } else if let index = selectedIndex {
+                store.addSession(type, to: workspaces[index].id)
+            }
+        case .addWorkspace:
+            showWorkspacePicker()
+        case .toggleTerminalFocus:
+            toggleTerminalFocus()
+        case .openSettings:
+            openSettings()
+        case .renameSession, .changeIcon, .duplicateSession, .closeSession, .reopenClosedSession:
+            paletteCommand = command
+        }
     }
 
     // Built on demand: the report is a snapshot of the moment the user asked for it.
