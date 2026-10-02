@@ -60,7 +60,7 @@ final class GhosttyRuntime {
                 let view = Unmanaged<GhosttySurfaceView>.fromOpaque(userdata).takeUnretainedValue()
                 switch action.tag {
                 case GHOSTTY_ACTION_SHOW_CHILD_EXITED:
-                    view.processExited()
+                    view.processExited(code: Int32(truncatingIfNeeded: action.action.child_exited.exit_code))
                     return true
                 case GHOSTTY_ACTION_SET_TITLE, GHOSTTY_ACTION_PWD,
                      GHOSTTY_ACTION_CELL_SIZE, GHOSTTY_ACTION_INITIAL_SIZE,
@@ -102,7 +102,7 @@ final class GhosttyRuntime {
             }
         }
         callbacks.close_surface_cb = { userdata, _ in
-            MainActor.assumeIsolated { GhosttySurfaceView.from(userdata)?.processExited() }
+            MainActor.assumeIsolated { GhosttySurfaceView.from(userdata)?.processExited(code: nil) }
         }
         guard let app = ghostty_app_new(&callbacks, self.config) else {
             ghostty_config_free(self.config)

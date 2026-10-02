@@ -100,10 +100,10 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
         removeFromSuperview()
     }
 
-    func processExited() {
-        TerminalDiagnostics.info("Process exited for \(command ?? "the login shell")")
+    func processExited(code: Int32?) {
+        TerminalDiagnostics.info("Process exited\(code.map { " with code \($0)" } ?? "") for \(command ?? "the login shell")")
         // Never destroy a surface synchronously inside one of its C callbacks.
-        DispatchQueue.main.async { [weak self] in self?.session?.updateStatus(.exited) }
+        DispatchQueue.main.async { [weak self] in self?.session?.updateStatus(.exited(code: code)) }
     }
 
     override func layout() {

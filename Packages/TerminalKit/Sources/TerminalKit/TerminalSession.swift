@@ -66,6 +66,12 @@ public final class TerminalSession {
 
     func updateStatus(_ status: TerminalStatus) {
         guard self.status != .closed else { return }
+        // libghostty reports the exit twice: the child-exited action carries the code and the
+        // surface close that follows does not. Keep the one that knows.
+        if case .exited(let known?) = self.status, case .exited(nil) = status {
+            self.status = .exited(code: known)
+            return
+        }
         self.status = status
     }
 

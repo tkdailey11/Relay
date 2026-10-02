@@ -22,7 +22,7 @@ struct TerminalPane: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 if isExpanded && !sessions.isEmpty {
-                    FocusSessionTabs(status: terminals.status, resolve: types.resolve,
+                    FocusSessionTabs(state: terminals.state, resolve: types.resolve,
                                      sessions: sessions, selectedSessionID: selectedSession?.id,
                                      selectSession: selectSession, renameSession: renameSession,
                                      changeIcon: changeIcon, duplicateSession: duplicateSession,

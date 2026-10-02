@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FocusSessionTabs: View {
-    let status: (Session) -> String
+    let state: (Session) -> SessionState
     let resolve: (Session) -> ResolvedSessionType
     let sessions: [Session]
     let selectedSessionID: Session.ID?
@@ -26,6 +26,15 @@ struct FocusSessionTabs: View {
                         } label: {
                             Label(title, systemImage: type.symbol)
                                 .lineLimit(1)
+                                // Tabs hide every session but the selected one, so a stopped
+                                // or failed session would otherwise go unnoticed.
+                                .overlay(alignment: .topTrailing) {
+                                    let state = state(session)
+                                    if state != .running && state != .preview && state != .notStarted {
+                                        Circle().fill(state.color).frame(width: 6, height: 6)
+                                            .offset(x: 8, y: -4)
+                                    }
+                                }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
                                 .foregroundStyle(isSelected ? Color.primary : Color.secondary)
@@ -50,7 +59,7 @@ struct FocusSessionTabs: View {
                         .help("Double-click to rename")
                         .accessibilityLabel("\(title) session")
                         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-                        .accessibilityValue(isSelected ? "Selected, \(status(session))" : status(session))
+                        .accessibilityValue(isSelected ? "Selected, \(state(session).label)" : state(session).label)
                         .contextMenu {
                             Button("Rename Session…", systemImage: "pencil") {
                                 renameSession(session)

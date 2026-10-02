@@ -3,13 +3,14 @@ import SwiftUI
 struct SessionCard<MenuContent: View>: View {
     let session: Session
     let type: ResolvedSessionType
-    let status: String
+    let state: SessionState
     let isSelected: Bool
     let select: () -> Void
     let rename: () -> Void
     @ViewBuilder let menu: () -> MenuContent
     @State private var isHovered = false
     private var title: String { session.title(type) }
+    private var status: String { state.label }
 
     var body: some View {
         Button(action: select) {
@@ -26,7 +27,7 @@ struct SessionCard<MenuContent: View>: View {
                 // button so its clicks are not swallowed by the selection button.
                 .padding(.trailing, 22)
                 HStack(spacing: 6) {
-                    Circle().fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.5)).frame(width: 5, height: 5)
+                    Circle().fill(state.color).frame(width: 6, height: 6)
                     Text(isSelected ? "Selected · \(status)" : status).font(.caption).foregroundStyle(.secondary)
                 }
             }

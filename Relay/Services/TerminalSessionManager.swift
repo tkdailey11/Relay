@@ -46,11 +46,15 @@ final class TerminalSessionManager {
         }
     }
 
+    func state(for session: Session) -> SessionState {
+        if !allowsLaunching { return .preview }
+        if errors[session.id] != nil { return .failed }
+        if preparing.contains(session.id) { return .starting }
+        return sessions[session.id].map { SessionState($0.status) } ?? .notStarted
+    }
+
     func status(for session: Session) -> String {
-        if !allowsLaunching { return "Preview" }
-        if errors[session.id] != nil { return "Failed" }
-        if preparing.contains(session.id) { return "Starting" }
-        return sessions[session.id]?.status.label ?? "Not started"
+        state(for: session).label
     }
 
     func close(_ id: Session.ID) {

@@ -51,4 +51,18 @@ struct TerminalSessionTests {
         #expect(GhosttyRuntime.commandValue(for: "cd ~/src && claude")
                 == "shell:cd ~/src && claude")
     }
+
+    @Test func exitLabelsShowOnlyANonZeroCode() {
+        #expect(TerminalStatus.exited(code: 0).label == "Exited")
+        #expect(TerminalStatus.exited(code: nil).label == "Exited")
+        #expect(TerminalStatus.exited(code: 130).label == "Exited (130)")
+    }
+
+    /// The close that follows a child exit has no code and must not erase the one already known.
+    @Test func aLaterCodelessExitKeepsTheKnownCode() throws {
+        let session = try TerminalSession(workingDirectory: FileManager.default.temporaryDirectory)
+        session.updateStatus(.exited(code: 2))
+        session.updateStatus(.exited(code: nil))
+        #expect(session.status == .exited(code: 2))
+    }
 }

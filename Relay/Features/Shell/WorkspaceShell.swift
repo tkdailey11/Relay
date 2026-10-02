@@ -110,7 +110,7 @@ struct WorkspaceShell: View {
                 LazyHStack(spacing: 12) {
                     ForEach(sessions) { session in
                         SessionCard(session: session, type: types.resolve(session),
-                                    status: terminals.status(for: session),
+                                    state: terminals.state(for: session),
                                     isSelected: session.id == selectedSessionID,
                                     select: { selectSession(session) },
                                     rename: { beginRenaming(session) },

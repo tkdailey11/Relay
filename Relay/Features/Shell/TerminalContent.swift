@@ -25,8 +25,8 @@ struct TerminalContent: View {
                     switch terminal.status {
                     case .failed(let message):
                         Text(message).padding().background(.regularMaterial)
-                    case .exited:
-                        Text("\(name(of: selectedSession)) exited. Create a new \(types.resolve(selectedSession).name) session to continue.")
+                    case .exited(let code):
+                        Text("\(name(of: selectedSession)) exited\(code.flatMap { $0 == 0 ? nil : " with code \($0)" } ?? ""). Create a new \(types.resolve(selectedSession).name) session to continue.")
                             .padding().background(.regularMaterial)
                     default:
                         EmptyView()
