@@ -90,8 +90,13 @@ final class SessionTypeStore {
     /// Live values win so renaming a type updates sessions already started from it; a session
     /// whose type was deleted keeps the name it was started under.
     func resolve(_ session: Session) -> ResolvedSessionType {
-        if let type = type(id: session.typeID) { return ResolvedSessionType(type) }
-        return .missing(named: session.typeName)
+        resolveType(of: session).with(symbol: session.symbol)
+    }
+
+    /// The type's own look, before the session's icon override. What the icon picker offers
+    /// to return to.
+    func resolveType(of session: Session) -> ResolvedSessionType {
+        type(id: session.typeID).map(ResolvedSessionType.init) ?? .missing(named: session.typeName)
     }
 
     func add(_ type: SessionType) {

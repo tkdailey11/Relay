@@ -125,4 +125,26 @@ struct SessionRenameTests {
         #expect(copy.typeName == session.typeName)
         #expect(copy.customName == "Fix login bug")
     }
+
+    @Test func aSessionIconOverridesTheTypesAndClearsBackToIt() throws {
+        var session = Session(type: claude)
+        session.setSymbol("flame", typeSymbol: claude.symbol)
+        #expect(session.symbol == "flame")
+        #expect(ResolvedSessionType(claude).with(symbol: session.symbol).symbol == "flame")
+        #expect(session.duplicate().symbol == "flame")
+
+        let reopened = try JSONDecoder().decode(Session.self, from: JSONEncoder().encode(session))
+        #expect(reopened.symbol == "flame")
+
+        session.setSymbol(claude.symbol, typeSymbol: claude.symbol)
+        #expect(session.symbol == nil)
+        session.setSymbol("flame", typeSymbol: claude.symbol)
+        session.setSymbol(nil, typeSymbol: claude.symbol)
+        #expect(session.symbol == nil)
+    }
+
+    @Test func anUnchangedSessionIsSavedWithoutASymbol() throws {
+        let data = try JSONEncoder().encode(Session(type: claude))
+        #expect(String(decoding: data, as: UTF8.self).contains("symbol") == false)
+    }
 }

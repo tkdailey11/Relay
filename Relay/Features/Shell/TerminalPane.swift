@@ -9,6 +9,7 @@ struct TerminalPane: View {
     let sessions: [Session]
     let selectSession: (Session) -> Void
     let renameSession: (Session) -> Void
+    let changeIcon: (Session) -> Void
     let duplicateSession: (Session) -> Void
     let closeSession: (Session) -> Void
     let moveSession: (Session.ID, Int) -> Void
@@ -24,7 +25,7 @@ struct TerminalPane: View {
                     FocusSessionTabs(status: terminals.status, resolve: types.resolve,
                                      sessions: sessions, selectedSessionID: selectedSession?.id,
                                      selectSession: selectSession, renameSession: renameSession,
-                                     duplicateSession: duplicateSession,
+                                     changeIcon: changeIcon, duplicateSession: duplicateSession,
                                      closeSession: closeSession, moveSession: moveSession)
                 } else {
                     Label(selectedSession.map { $0.title(types.resolve($0)) } ?? "Terminal",

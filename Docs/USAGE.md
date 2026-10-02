@@ -24,6 +24,7 @@ Start a session from the **New Session** menu in a workspace's header. It runs i
 - **Switch sessions** by clicking their cards, with ⌘1–⌘9 for the first nine, or with ⇧⌘[ / ⇧⌘] for the previous/next one.
 - **Reopen a closed session** with **File ▸ Reopen Closed Session** (⇧⌘T), or pick one from **File ▸ Recently Closed**. Relay remembers the last ten sessions closed in each workspace (and in Temporary Sessions) until you quit. A reopened session has the same type and name and returns to its old position, but it starts a fresh terminal: the closed process and its output are gone.
 - **Reorder sessions** by dragging their cards (or their tabs in Terminal Focus), or with **Move Left** / **Move Right** in a session's context menu. ⌘1–⌘9 and next/previous follow the new order, and a workspace remembers it.
+- **Change a session's icon** with **Change Icon…** in its context menu, so two sessions of the same type are easy to tell apart. Choose **Use Claude Icon** (named for the session's type) to go back to the type's icon. Colors still follow the type.
 - **Rename**, **duplicate**, or **close** a session from its card's context menu. Duplicate starts a new session of the same type and name right beside the original, with a fresh terminal. Relay confirms before closing a session that still has a process running.
 
 ### Temporary sessions

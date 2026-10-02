@@ -9,6 +9,9 @@ struct Session: Identifiable, Codable, Equatable {
     /// Set by the user to tell sessions apart, such as two Claude sessions on different tasks.
     /// Nil shows the type's name, so renaming the type in Settings still reaches the session.
     var customName: String?
+    /// An SF Symbol chosen for this session alone. Nil follows the type's icon, so changing
+    /// the type in Settings still reaches sessions that never picked their own.
+    var symbol: String?
 
     init(id: UUID = UUID(), type: SessionType) {
         self.id = id
@@ -23,7 +26,7 @@ struct Session: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, typeID, typeName, customName
+        case id, typeID, typeName, customName, symbol
         /// Relay 0.1 stored a `SessionKind` raw value here: "Claude", "Copilot" or "Shell".
         case kind
     }
@@ -35,12 +38,14 @@ struct Session: Identifiable, Codable, Equatable {
         try container.encode(typeID, forKey: .typeID)
         try container.encode(typeName, forKey: .typeName)
         try container.encodeIfPresent(customName, forKey: .customName)
+        try container.encodeIfPresent(symbol, forKey: .symbol)
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         customName = try container.decodeIfPresent(String.self, forKey: .customName)
+        symbol = try container.decodeIfPresent(String.self, forKey: .symbol)
         if let typeID = try container.decodeIfPresent(String.self, forKey: .typeID) {
             self.typeID = typeID
             // A snapshot written before typeName existed falls back to the id.
@@ -54,11 +59,17 @@ struct Session: Identifiable, Codable, Equatable {
         }
     }
 
+    /// Choosing the type's own icon clears the override, like renaming back to the type's name.
+    mutating func setSymbol(_ symbol: String?, typeSymbol: String) {
+        self.symbol = symbol == typeSymbol ? nil : symbol
+    }
+
     /// A fresh session of the same type and name. Only the launch recipe carries over: the new
     /// terminal starts clean, since a running process can't be cloned.
     func duplicate() -> Session {
         var copy = Session(typeID: typeID, typeName: typeName)
         copy.customName = customName
+        copy.symbol = symbol
         return copy
     }
 

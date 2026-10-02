@@ -8,6 +8,7 @@ struct WorkspaceShell: View {
     @State private var sessionPendingRename: Session?
     @State private var showsRenamePrompt = false
     @State private var renameText = ""
+    @State private var sessionPendingIcon: Session.ID?
     @State private var focusRequest = UUID()
     @State private var scrollbackSearch: ScrollbackSearchItem?
     @State private var cardReorder = HorizontalReorder(coordinateSpace: "sessionCards", spacing: 12)
@@ -37,7 +38,7 @@ struct WorkspaceShell: View {
             }
             TerminalPane(terminals: terminals, directory: path, focusRequest: focusRequest,
                          selectedSession: selectedSession, sessions: sessions,
-                                selectSession: selectSession, renameSession: beginRenaming,
+                                selectSession: selectSession, renameSession: beginRenaming, changeIcon: beginChangingIcon,
                                 duplicateSession: duplicateSession, closeSession: closeSession, moveSession: moveSession,
                                 isExpanded: $isTerminalExpanded,
                                 types: types, addSession: addSession)
@@ -66,6 +67,14 @@ struct WorkspaceShell: View {
             Text("Leave the name empty to use the session type’s name.")
         }
         .onChange(of: isTerminalExpanded) { focusRequest = UUID() }
+        .sheet(isPresented: Binding(get: { iconPickerSession != nil },
+                                    set: { if !$0 { sessionPendingIcon = nil } })) {
+            if let session = iconPickerSession {
+                SessionIconPicker(sessionName: session.title(types.resolve(session)),
+                                  type: types.resolveType(of: session),
+                                  current: session.symbol, choose: { setIcon($0, for: session.id) })
+            }
+        }
         .sheet(item: $scrollbackSearch) { item in
             ScrollbackSearchView(sessionName: item.sessionName, scrollback: item.scrollback)
         }
@@ -123,6 +132,9 @@ struct WorkspaceShell: View {
     @ViewBuilder private func sessionMenu(_ session: Session) -> some View {
         Button("Rename Session…", systemImage: "pencil") {
             beginRenaming(session)
+        }
+        Button("Change Icon…", systemImage: "face.smiling") {
+            beginChangingIcon(session)
         }
         Button("Duplicate Session", systemImage: "plus.square.on.square") {
             duplicateSession(session)
@@ -192,6 +204,21 @@ struct WorkspaceShell: View {
         let session = closed.session.duplicate()
         sessions.insert(session, at: min(closed.index, sessions.count))
         selectSession(session)
+    }
+
+    private var iconPickerSession: Session? {
+        sessions.first { $0.id == sessionPendingIcon }
+    }
+
+    private func beginChangingIcon(_ session: Session) {
+        sessionPendingIcon = session.id
+    }
+
+    /// Looked up by id: the picker stays open while the session may have moved in the array.
+    private func setIcon(_ symbol: String?, for id: Session.ID) {
+        guard let index = sessions.firstIndex(where: { $0.id == id }) else { return }
+        let typeSymbol = types.resolveType(of: sessions[index]).symbol
+        sessions[index].setSymbol(symbol, typeSymbol: typeSymbol)
     }
 
     private func beginRenaming(_ session: Session) {

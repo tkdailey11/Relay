@@ -7,6 +7,7 @@ struct FocusSessionTabs: View {
     let selectedSessionID: Session.ID?
     let selectSession: (Session) -> Void
     let renameSession: (Session) -> Void
+    let changeIcon: (Session) -> Void
     let duplicateSession: (Session) -> Void
     let closeSession: (Session) -> Void
     let moveSession: (Session.ID, Int) -> Void
@@ -53,6 +54,9 @@ struct FocusSessionTabs: View {
                         .contextMenu {
                             Button("Rename Session…", systemImage: "pencil") {
                                 renameSession(session)
+                            }
+                            Button("Change Icon…", systemImage: "face.smiling") {
+                                changeIcon(session)
                             }
                             Button("Duplicate Session", systemImage: "plus.square.on.square") {
                                 duplicateSession(session)

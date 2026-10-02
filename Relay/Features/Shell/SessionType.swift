@@ -111,6 +111,11 @@ struct ResolvedSessionType {
     let color: Color
     let isMissing: Bool
 
+    func with(symbol: String?) -> ResolvedSessionType {
+        guard let symbol else { return self }
+        return ResolvedSessionType(name: name, symbol: symbol, color: color, isMissing: isMissing)
+    }
+
     static func missing(named name: String) -> ResolvedSessionType {
         ResolvedSessionType(name: name, symbol: "questionmark.app.dashed", color: .gray, isMissing: true)
     }

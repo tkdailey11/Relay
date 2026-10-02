@@ -133,8 +133,6 @@ private struct SessionTypeEditor: View {
     let save: (SessionType) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    private let columns = [GridItem(.adaptive(minimum: 38), spacing: 8)]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(isNew ? "New Session Type" : "Edit \(type.name)")
@@ -168,20 +166,7 @@ private struct SessionTypeEditor: View {
                     }
                 }
                 Section("Icon") {
-                    LazyVGrid(columns: columns, spacing: 8) {
-                        ForEach(SessionType.symbols, id: \.self) { symbol in
-                            Button { type.symbol = symbol } label: {
-                                Image(systemName: symbol)
-                                    .frame(width: 32, height: 28)
-                                    .foregroundStyle(type.symbol == symbol ? type.color.color : .secondary)
-                                    .background(type.symbol == symbol ? type.color.color.opacity(0.15) : .clear,
-                                                in: RoundedRectangle(cornerRadius: 6))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(symbol)
-                            .accessibilityAddTraits(type.symbol == symbol ? [.isSelected] : [])
-                        }
-                    }
+                    SymbolGrid(selection: type.symbol, tint: type.color.color) { type.symbol = $0 }
                 }
             }
             .formStyle(.grouped)
