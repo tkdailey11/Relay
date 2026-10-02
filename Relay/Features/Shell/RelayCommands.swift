@@ -46,6 +46,15 @@ struct DuplicateSessionAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.sessionName == rhs.sessionName }
 }
 
+/// Newest first. Empty when nothing has been closed, which disables the menu items.
+struct ReopenSessionAction: Equatable {
+    let titles: [String]
+    let ids: [ClosedSession.ID]
+    let reopen: (ClosedSession.ID) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.ids == rhs.ids && lhs.titles == rhs.titles }
+}
+
 struct ScrollbackSearchAction: Equatable {
     let show: () -> Void
 
@@ -77,6 +86,7 @@ extension FocusedValues {
     @Entry var newSession: NewSessionAction?
     @Entry var scrollbackSearch: ScrollbackSearchAction?
     @Entry var duplicateSession: DuplicateSessionAction?
+    @Entry var reopenSession: ReopenSessionAction?
     @Entry var destinationSwitch: DestinationSwitchAction?
 }
 
@@ -92,6 +102,7 @@ struct RelayCommands: Commands {
     @FocusedValue(\.newSession) private var newSession
     @FocusedValue(\.scrollbackSearch) private var scrollbackSearch
     @FocusedValue(\.duplicateSession) private var duplicateSession
+    @FocusedValue(\.reopenSession) private var reopenSession
     @FocusedValue(\.destinationSwitch) private var destinationSwitch
     @Environment(\.openWindow) private var openWindow
 
@@ -112,6 +123,17 @@ struct RelayCommands: Commands {
             }
             .keyboardShortcut("d", modifiers: [.command, .shift])
             .disabled(duplicateSession == nil)
+            Button("Reopen Closed Session", systemImage: "arrow.uturn.backward") {
+                if let id = reopenSession?.ids.first { reopenSession?.reopen(id) }
+            }
+            .keyboardShortcut("t", modifiers: [.command, .shift])
+            .disabled(reopenSession?.ids.isEmpty != false)
+            Menu("Recently Closed") {
+                ForEach(Array((reopenSession?.ids ?? []).enumerated()), id: \.element) { offset, id in
+                    Button(reopenSession?.titles[offset] ?? "") { reopenSession?.reopen(id) }
+                }
+            }
+            .disabled(reopenSession?.ids.isEmpty != false)
         }
         // Printing a terminal is not something Relay offers, and ⌘P belongs to the switcher.
         CommandGroup(replacing: .printItem) {}

@@ -80,6 +80,7 @@ struct ContentView: View {
                            path: store.temporaryWorkingDirectory,
                            sessions: $store.temporarySessions,
                            selectedSessionID: $store.selectedTemporarySessionID,
+                           closedSessions: closedSessions(for: .temporary),
                            isTemporary: true, isTerminalExpanded: $isTerminalExpanded,
                            types: sessionTypes,
                            addSession: store.addTemporarySession)
@@ -88,6 +89,7 @@ struct ContentView: View {
             WorkspaceShell(terminals: store.terminals, name: workspace.name, path: workspace.path,
                            sessions: $store.state.workspaces[index].sessions,
                            selectedSessionID: $store.state.workspaces[index].selectedSessionID,
+                           closedSessions: closedSessions(for: .workspace(workspace.id)),
                            isTerminalExpanded: $isTerminalExpanded,
                            types: sessionTypes,
                            addSession: { store.addSession($0, to: workspace.id) })
@@ -100,6 +102,11 @@ struct ContentView: View {
                 Button("Add Workspace", action: showWorkspacePicker)
             }
         }
+    }
+
+    private func closedSessions(for destination: SessionDestination) -> Binding<[ClosedSession]> {
+        Binding(get: { store.closedSessions[destination] ?? [] },
+                set: { store.closedSessions[destination] = $0 })
     }
 
     private var isShowingShell: Bool {

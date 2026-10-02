@@ -22,6 +22,7 @@ Start a session from the **New Session** menu in a workspace's header. It runs i
 
 - **⌘N** starts a new session of the default type (Shell, unless you've disabled it). Every other type is in the **File** menu.
 - **Switch sessions** by clicking their cards, with ⌘1–⌘9 for the first nine, or with ⇧⌘[ / ⇧⌘] for the previous/next one.
+- **Reopen a closed session** with **File ▸ Reopen Closed Session** (⇧⌘T), or pick one from **File ▸ Recently Closed**. Relay remembers the last ten sessions closed in each workspace (and in Temporary Sessions) until you quit. A reopened session has the same type and name and returns to its old position, but it starts a fresh terminal: the closed process and its output are gone.
 - **Reorder sessions** by dragging their cards (or their tabs in Terminal Focus), or with **Move Left** / **Move Right** in a session's context menu. ⌘1–⌘9 and next/previous follow the new order, and a workspace remembers it.
 - **Rename**, **duplicate**, or **close** a session from its card's context menu. Duplicate starts a new session of the same type and name right beside the original, with a fresh terminal. Relay confirms before closing a session that still has a process running.
 
@@ -42,6 +43,7 @@ Use them for one-off commands that don't belong to a project.
 | Focus Terminal (toggle) | ⇧⌘↩ |
 | New session (default type) | ⌘N |
 | Duplicate the selected session | ⇧⌘D |
+| Reopen the last closed session | ⇧⌘T |
 | Add Workspace | ⇧⌘O |
 | Relay Help (this guide) | ⌘? |
 

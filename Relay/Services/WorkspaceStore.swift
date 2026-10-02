@@ -24,6 +24,9 @@ final class WorkspaceStore {
         didSet { reconcileTerminals() }
     }
     var selectedTemporarySessionID: UUID?
+    /// Per destination and for this launch only, like temporary sessions: reopening is for
+    /// undoing a slip, and nothing here is written to the workspace snapshot.
+    var closedSessions: [SessionDestination: [ClosedSession]] = [:]
     var showsTemporarySessions = false
     var destination: SessionDestination? {
         get {
@@ -107,6 +110,7 @@ final class WorkspaceStore {
         RelayLog.info(.workspace, "Removed workspace \(state.workspaces[index].name) with \(state.workspaces[index].sessions.count) session(s)")
         var updated = state
         updated.workspaces.remove(at: index)
+        closedSessions[.workspace(id)] = nil
         if state.selectedWorkspaceID == id {
             // Land on whichever workspace took the removed one's place rather than jumping to
             // the top of the list. Removing the last one leaves Temporary Sessions selected.

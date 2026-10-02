@@ -15,6 +15,7 @@ struct WorkspaceShell: View {
     let path: String
     @Binding var sessions: [Session]
     @Binding var selectedSessionID: UUID?
+    @Binding var closedSessions: [ClosedSession]
     var isTemporary = false
     @Binding var isTerminalExpanded: Bool
     let types: SessionTypeStore
@@ -80,6 +81,11 @@ struct WorkspaceShell: View {
                 duplicateSession(session)
             }
         })
+        .focusedSceneValue(\.reopenSession, ReopenSessionAction(
+            titles: closedSessions.map { $0.session.title(types.resolve($0.session)) },
+            ids: closedSessions.map(\.id),
+            reopen: reopenSession
+        ))
         .focusedSceneValue(\.sessionSwitch, SessionSwitchAction(
             titles: sessions.map { $0.title(types.resolve($0)) },
             selectedIndex: sessions.firstIndex { $0.id == selectedSessionID },
@@ -180,6 +186,14 @@ struct WorkspaceShell: View {
         selectSession(copy)
     }
 
+    /// The copy gets a new id, so nothing is shared with the terminal that was closed.
+    private func reopenSession(_ id: ClosedSession.ID) {
+        guard let closed = closedSessions.take(id) else { return }
+        let session = closed.session.duplicate()
+        sessions.insert(session, at: min(closed.index, sessions.count))
+        selectSession(session)
+    }
+
     private func beginRenaming(_ session: Session) {
         sessionPendingRename = session
         renameText = session.title(types.resolve(session))
@@ -207,6 +221,9 @@ struct WorkspaceShell: View {
 
     private func finishClosing(_ session: Session) {
         terminals.close(session.id)
+        if let index = sessions.firstIndex(where: { $0.id == session.id }) {
+            closedSessions.remember(session, at: index)
+        }
         sessions.removeAll { $0.id == session.id }
         if selectedSessionID == session.id {
             selectedSessionID = sessions.first?.id
