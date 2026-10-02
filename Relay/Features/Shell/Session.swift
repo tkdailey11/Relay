@@ -54,6 +54,14 @@ struct Session: Identifiable, Codable, Equatable {
         }
     }
 
+    /// A fresh session of the same type and name. Only the launch recipe carries over: the new
+    /// terminal starts clean, since a running process can't be cloned.
+    func duplicate() -> Session {
+        var copy = Session(typeID: typeID, typeName: typeName)
+        copy.customName = customName
+        return copy
+    }
+
     /// What the UI calls this session: its custom name, falling back to its type's.
     func title(_ type: ResolvedSessionType) -> String {
         customName ?? type.name

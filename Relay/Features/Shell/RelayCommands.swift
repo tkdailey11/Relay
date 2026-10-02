@@ -38,6 +38,14 @@ struct NewSessionAction: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.destinationName == rhs.destinationName }
 }
 
+/// Acts on the selected session. Nil when there is none, which disables the menu item.
+struct DuplicateSessionAction: Equatable {
+    let sessionName: String
+    let duplicate: () -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.sessionName == rhs.sessionName }
+}
+
 struct ScrollbackSearchAction: Equatable {
     let show: () -> Void
 
@@ -68,6 +76,7 @@ extension FocusedValues {
     @Entry var activeTerminal: ActiveTerminalAction?
     @Entry var newSession: NewSessionAction?
     @Entry var scrollbackSearch: ScrollbackSearchAction?
+    @Entry var duplicateSession: DuplicateSessionAction?
     @Entry var destinationSwitch: DestinationSwitchAction?
 }
 
@@ -82,6 +91,7 @@ struct RelayCommands: Commands {
     @FocusedValue(\.activeTerminal) private var activeTerminal
     @FocusedValue(\.newSession) private var newSession
     @FocusedValue(\.scrollbackSearch) private var scrollbackSearch
+    @FocusedValue(\.duplicateSession) private var duplicateSession
     @FocusedValue(\.destinationSwitch) private var destinationSwitch
     @Environment(\.openWindow) private var openWindow
 
@@ -96,6 +106,12 @@ struct RelayCommands: Commands {
                 .keyboardShortcut(shortcut(for: type))
                 .disabled(newSession == nil)
             }
+            Divider()
+            Button("Duplicate Session", systemImage: "plus.square.on.square") {
+                duplicateSession?.duplicate()
+            }
+            .keyboardShortcut("d", modifiers: [.command, .shift])
+            .disabled(duplicateSession == nil)
         }
         // Printing a terminal is not something Relay offers, and ⌘P belongs to the switcher.
         CommandGroup(replacing: .printItem) {}

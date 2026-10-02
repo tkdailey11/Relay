@@ -7,6 +7,7 @@ struct FocusSessionTabs: View {
     let selectedSessionID: Session.ID?
     let selectSession: (Session) -> Void
     let renameSession: (Session) -> Void
+    let duplicateSession: (Session) -> Void
     let closeSession: (Session) -> Void
     let moveSession: (Session.ID, Int) -> Void
     @State private var reorder = HorizontalReorder(coordinateSpace: "focusSessionTabs", spacing: 4)
@@ -52,6 +53,9 @@ struct FocusSessionTabs: View {
                         .contextMenu {
                             Button("Rename Session…", systemImage: "pencil") {
                                 renameSession(session)
+                            }
+                            Button("Duplicate Session", systemImage: "plus.square.on.square") {
+                                duplicateSession(session)
                             }
                             Divider()
                             Button("Move Left", systemImage: "arrow.left") { step(session, by: -1) }

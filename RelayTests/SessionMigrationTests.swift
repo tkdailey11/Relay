@@ -115,4 +115,14 @@ struct SessionRenameTests {
         let data = try JSONEncoder().encode(Session(type: claude))
         #expect(String(decoding: data, as: UTF8.self).contains("customName") == false)
     }
+
+    @Test func aDuplicateKeepsTheTypeAndNameButNotTheIdentity() {
+        var session = Session(type: claude)
+        session.rename(to: "Fix login bug", typeName: claude.name)
+        let copy = session.duplicate()
+        #expect(copy.id != session.id)
+        #expect(copy.typeID == session.typeID)
+        #expect(copy.typeName == session.typeName)
+        #expect(copy.customName == "Fix login bug")
+    }
 }

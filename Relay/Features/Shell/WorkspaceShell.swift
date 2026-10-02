@@ -37,7 +37,7 @@ struct WorkspaceShell: View {
             TerminalPane(terminals: terminals, directory: path, focusRequest: focusRequest,
                          selectedSession: selectedSession, sessions: sessions,
                                 selectSession: selectSession, renameSession: beginRenaming,
-                                closeSession: closeSession, moveSession: moveSession,
+                                duplicateSession: duplicateSession, closeSession: closeSession, moveSession: moveSession,
                                 isExpanded: $isTerminalExpanded,
                                 types: types, addSession: addSession)
             if !isTerminalExpanded {
@@ -74,6 +74,11 @@ struct WorkspaceShell: View {
         .focusedSceneValue(\.activeTerminal, activeTerminal)
         .focusedSceneValue(\.scrollbackSearch, activeTerminal.map { _ in
             ScrollbackSearchAction(show: showScrollbackSearch)
+        })
+        .focusedSceneValue(\.duplicateSession, selectedSession.map { session in
+            DuplicateSessionAction(sessionName: session.title(types.resolve(session))) {
+                duplicateSession(session)
+            }
         })
         .focusedSceneValue(\.sessionSwitch, SessionSwitchAction(
             titles: sessions.map { $0.title(types.resolve($0)) },
@@ -112,6 +117,9 @@ struct WorkspaceShell: View {
     @ViewBuilder private func sessionMenu(_ session: Session) -> some View {
         Button("Rename Session…", systemImage: "pencil") {
             beginRenaming(session)
+        }
+        Button("Duplicate Session", systemImage: "plus.square.on.square") {
+            duplicateSession(session)
         }
         Divider()
         // Dragging is the main way to reorder; these keep it reachable without a pointer.
@@ -162,6 +170,14 @@ struct WorkspaceShell: View {
         guard sessions.canMove(id, by: offset),
               let index = sessions.firstIndex(where: { $0.id == id }) else { return }
         withAnimation(.snappy) { moveSession(id, to: index + offset) }
+    }
+
+    /// The copy sits beside the original and takes the selection, as a duplicated tab does.
+    private func duplicateSession(_ session: Session) {
+        guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
+        let copy = session.duplicate()
+        sessions.insert(copy, at: index + 1)
+        selectSession(copy)
     }
 
     private func beginRenaming(_ session: Session) {
