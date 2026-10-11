@@ -10,6 +10,7 @@ struct WorkspaceHeader: View {
     @State private var gitHead: GitHead?
     @State private var recentBranches: [String] = []
     @State private var switchError: String?
+    @State private var stashOffer: String?
 
     var body: some View {
         HStack(spacing: 14) {
@@ -57,6 +58,15 @@ struct WorkspaceHeader: View {
         } message: {
             Text(switchError ?? "")
         }
+        .alert("Stash changes and switch to \(stashOffer ?? "")?",
+               isPresented: Binding(get: { stashOffer != nil }, set: { if !$0 { stashOffer = nil } })) {
+            Button("Stash and Switch") {
+                if let branch = stashOffer { switchBranch(to: branch, stashing: true) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your uncommitted changes would be overwritten. Relay can stash them first. They stay in the stash, not on the new branch; run “git stash pop” to bring them back.")
+        }
     }
 
     /// Takes priority over the path, which truncates first since the branch is the part that
@@ -86,9 +96,14 @@ struct WorkspaceHeader: View {
         .accessibilityLabel(accessibility)
     }
 
-    private func switchBranch(to branch: String) {
+    private func switchBranch(to branch: String, stashing: Bool = false) {
         Task {
-            if case .failure(let error) = await GitService.switchBranch(to: branch, at: path) {
+            let result = stashing ? await GitService.stashAndSwitch(to: branch, at: path)
+                                  : await GitService.switchBranch(to: branch, at: path)
+            guard case .failure(let error) = result else { return }
+            if error.blockedByLocalChanges && !stashing {
+                stashOffer = branch
+            } else {
                 switchError = error.message
             }
         }

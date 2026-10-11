@@ -9,6 +9,9 @@ nonisolated enum GitHead: Equatable, Sendable {
 
 struct GitError: Error, Equatable, Sendable {
     let message: String
+    /// Git refused because uncommitted changes to tracked files would be lost, the one failure
+    /// stashing can fix.
+    var blockedByLocalChanges = false
 }
 
 /// Reads Git metadata straight from the repository's files rather than running `git`. On a Mac
@@ -106,24 +109,64 @@ nonisolated enum GitService {
     }
 
     /// Switches the repository containing `directory` to `branch` with `git switch`, which
-    /// refuses rather than lose uncommitted work. Returns Git's explanation on failure. Git is
-    /// only run for this explicit request, never to read state.
+    /// refuses rather than lose uncommitted work. Git is only run for an explicit request like
+    /// this one, never to read state.
     static func switchBranch(to branch: String, at directory: String) async -> Result<Void, GitError> {
-        guard let git = gitExecutable() else { return .failure(GitError(message: "Git isn’t installed.")) }
-        return await Task.detached {
-            let process = Process()
-            process.executableURL = git
-            process.arguments = ["-C", directory, "switch", branch]
-            let errors = Pipe()
-            process.standardError = errors
-            process.standardOutput = FileHandle.nullDevice
-            do { try process.run() } catch { return .failure(GitError(message: error.localizedDescription)) }
-            let output = errors.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            guard process.terminationStatus != 0 else { return .success(()) }
-            let message = String(decoding: output, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-            return .failure(GitError(message: message.isEmpty ? "Git couldn’t switch to \(branch)." : message))
+        await Task.detached { switchNow(to: branch, at: directory) }.value
+    }
+
+    /// Stashes uncommitted changes, then switches. If the switch still fails the stash is put
+    /// back, so a failure leaves the working tree as it was found.
+    static func stashAndSwitch(to branch: String, at directory: String) async -> Result<Void, GitError> {
+        await Task.detached {
+            let stash = run(["stash", "push", "-m", "Relay: before switching to \(branch)"], at: directory)
+            guard stash.status == 0 else { return .failure(GitError(message: stash.failureMessage("Git couldn’t stash your changes."))) }
+            // Nothing to stash leaves nothing to restore; popping then would take an older stash.
+            let stashed = stash.output.contains("Saved working directory")
+            let result = switchNow(to: branch, at: directory)
+            if case .failure = result, stashed { _ = run(["stash", "pop"], at: directory) }
+            return result
         }.value
+    }
+
+    private nonisolated static func switchNow(to branch: String, at directory: String) -> Result<Void, GitError> {
+        let result = run(["switch", branch], at: directory)
+        guard result.status != 0 else { return .success(()) }
+        return .failure(GitError(message: result.failureMessage("Git couldn’t switch to \(branch)."),
+                                 blockedByLocalChanges: result.errors.contains("Your local changes")))
+    }
+
+    private struct GitResult {
+        var status: Int32
+        var output: String
+        var errors: String
+
+        func failureMessage(_ fallback: String) -> String {
+            let message = errors.trimmingCharacters(in: .whitespacesAndNewlines)
+            return message.isEmpty ? fallback : message
+        }
+    }
+
+    private nonisolated static func run(_ arguments: [String], at directory: String) -> GitResult {
+        guard let git = gitExecutable() else { return GitResult(status: -1, output: "", errors: "Git isn’t installed.") }
+        let process = Process()
+        process.executableURL = git
+        process.arguments = ["-C", directory] + arguments
+        let output = Pipe(), errors = Pipe()
+        process.standardOutput = output
+        process.standardError = errors
+        do { try process.run() } catch { return GitResult(status: -1, output: "", errors: error.localizedDescription) }
+        // Both pipes are drained concurrently so neither can fill and stall Git.
+        nonisolated(unsafe) var outputData = Data()
+        let drain = DispatchQueue(label: "Relay.GitService.drain")
+        let group = DispatchGroup()
+        drain.async(group: group) { outputData = output.fileHandleForReading.readDataToEndOfFile() }
+        let errorData = errors.fileHandleForReading.readDataToEndOfFile()
+        group.wait()
+        process.waitUntilExit()
+        return GitResult(status: process.terminationStatus,
+                         output: String(decoding: outputData, as: UTF8.self),
+                         errors: String(decoding: errorData, as: UTF8.self))
     }
 
     /// A real Git, or nil. Without the Command Line Tools `/usr/bin/git` is a stub that opens an

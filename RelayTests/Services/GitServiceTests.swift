@@ -118,3 +118,80 @@ struct GitRecentBranchesTests {
         #expect(GitService.recentBranches(at: root.path).isEmpty)
     }
 }
+
+struct GitSwitchBranchTests {
+    private func git(_ arguments: [String], in directory: URL) throws {
+        let process = Process()
+        process.executableURL = URL(filePath: "/usr/bin/env")
+        process.arguments = ["git", "-c", "user.name=T", "-c", "user.email=t@example.com"] + arguments
+        process.currentDirectoryURL = directory
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+    }
+
+    private func succeeded(_ result: Result<Void, GitError>) -> Bool {
+        if case .success = result { true } else { false }
+    }
+
+    /// A repository on `main` and `other`, where the two disagree about file.txt.
+    private func makeRepository() throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Relay Git \(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let file = root.appending(path: "file.txt")
+        try git(["init", "-b", "main"], in: root)
+        try "one\n".write(to: file, atomically: true, encoding: .utf8)
+        try git(["add", "."], in: root)
+        try git(["commit", "-m", "one"], in: root)
+        try git(["switch", "-c", "other"], in: root)
+        try "two\n".write(to: file, atomically: true, encoding: .utf8)
+        try git(["commit", "-am", "two"], in: root)
+        try git(["switch", "main"], in: root)
+        return root
+    }
+
+    @Test func switchesWhenTheTreeIsClean() async throws {
+        let root = try makeRepository()
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(succeeded(await GitService.switchBranch(to: "other", at: root.path)))
+        #expect(GitService.head(at: root.path) == .branch("other"))
+    }
+
+    @Test func reportsConflictingLocalChangesAndLeavesThemAlone() async throws {
+        let root = try makeRepository()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try "mine\n".write(to: root.appending(path: "file.txt"), atomically: true, encoding: .utf8)
+
+        guard case .failure(let error) = await GitService.switchBranch(to: "other", at: root.path) else {
+            Issue.record("Expected the switch to be refused")
+            return
+        }
+        #expect(error.blockedByLocalChanges)
+        #expect(GitService.head(at: root.path) == .branch("main"))
+        #expect(try String(contentsOf: root.appending(path: "file.txt"), encoding: .utf8) == "mine\n")
+    }
+
+    @Test func stashesConflictingChangesThenSwitches() async throws {
+        let root = try makeRepository()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try "mine\n".write(to: root.appending(path: "file.txt"), atomically: true, encoding: .utf8)
+
+        #expect(succeeded(await GitService.stashAndSwitch(to: "other", at: root.path)))
+        #expect(GitService.head(at: root.path) == .branch("other"))
+        #expect(try String(contentsOf: root.appending(path: "file.txt"), encoding: .utf8) == "two\n")
+    }
+
+    @Test func restoresTheStashWhenTheSwitchStillFails() async throws {
+        let root = try makeRepository()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try "mine\n".write(to: root.appending(path: "file.txt"), atomically: true, encoding: .utf8)
+
+        guard case .failure = await GitService.stashAndSwitch(to: "missing", at: root.path) else {
+            Issue.record("Expected the switch to fail")
+            return
+        }
+        #expect(GitService.head(at: root.path) == .branch("main"))
+        #expect(try String(contentsOf: root.appending(path: "file.txt"), encoding: .utf8) == "mine\n")
+    }
+}
