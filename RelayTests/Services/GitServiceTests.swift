@@ -86,3 +86,35 @@ struct GitServiceTests {
         #expect(await iterator.next() == .branch("main"))
     }
 }
+
+struct GitRecentBranchesTests {
+    @Test func listsRecentBranchesNewestFirstSkippingTheCurrentAndDeletedOnes() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Relay Git \(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let git = root.appending(path: ".git")
+        try FileManager.default.createDirectory(at: git.appending(path: "refs/heads/feature"), withIntermediateDirectories: true)
+        try "ref: refs/heads/main\n".write(to: git.appending(path: "HEAD"), atomically: true, encoding: .utf8)
+        for name in ["main", "dev", "feature/x"] {
+            try "abc\n".write(to: git.appending(path: "refs/heads/\(name)"), atomically: true, encoding: .utf8)
+        }
+        try "abc refs/heads/old\n".write(to: git.appending(path: "packed-refs"), atomically: true, encoding: .utf8)
+        try FileManager.default.createDirectory(at: git.appending(path: "logs"), withIntermediateDirectories: true)
+        let entry = { (from: String, to: String) in
+            "0000 1111 A <a@b> 1 +0000\tcheckout: moving from \(from) to \(to)\n"
+        }
+        try [entry("old", "gone"), entry("gone", "feature/x"), entry("feature/x", "dev"),
+             entry("dev", "old"), entry("old", "main")].joined()
+            .write(to: git.appending(path: "logs/HEAD"), atomically: true, encoding: .utf8)
+
+        #expect(GitService.recentBranches(at: root.path) == ["old", "dev", "feature/x"])
+        #expect(GitService.recentBranches(at: root.path, limit: 1) == ["old"])
+    }
+
+    @Test func hasNoRecentBranchesWithoutAReflog() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "Relay Git \(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appending(path: ".git"), withIntermediateDirectories: true)
+        try "ref: refs/heads/main\n".write(to: root.appending(path: ".git/HEAD"), atomically: true, encoding: .utf8)
+        #expect(GitService.recentBranches(at: root.path).isEmpty)
+    }
+}

@@ -8,6 +8,8 @@ struct WorkspaceHeader: View {
     let types: [SessionType]
     let addSession: (SessionType) -> Void
     @State private var gitHead: GitHead?
+    @State private var recentBranches: [String] = []
+    @State private var switchError: String?
 
     var body: some View {
         HStack(spacing: 14) {
@@ -43,10 +45,17 @@ struct WorkspaceHeader: View {
         // home folder, where a dotfiles repository would be noise rather than project context.
         .task(id: isTemporary ? nil : path) {
             gitHead = nil
+            recentBranches = []
             guard !isTemporary else { return }
             for await head in GitService.heads(at: path) {
                 gitHead = head
+                recentBranches = GitService.recentBranches(at: path)
             }
+        }
+        .alert("Couldn’t Switch Branch", isPresented: Binding(get: { switchError != nil },
+                                                             set: { if !$0 { switchError = nil } })) {
+        } message: {
+            Text(switchError ?? "")
         }
     }
 
@@ -57,11 +66,31 @@ struct WorkspaceHeader: View {
         case .branch(let name): (name, "Git branch \(name)")
         case .detached(let commit): ("detached at \(commit)", "Git HEAD detached at \(commit)")
         }
-        return Label(title, systemImage: "arrow.triangle.branch")
-            .lineLimit(1).truncationMode(.middle)
-            .layoutPriority(1)
-            .help(title)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(accessibility)
+        return Menu {
+            Section("Recent Branches") {
+                ForEach(recentBranches, id: \.self) { branch in
+                    Button(branch) { switchBranch(to: branch) }
+                }
+                if recentBranches.isEmpty {
+                    Button("No Other Recent Branches") {}.disabled(true)
+                }
+            }
+        } label: {
+            Label(title, systemImage: "arrow.triangle.branch")
+                .lineLimit(1).truncationMode(.middle)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .layoutPriority(1)
+        .help("\(title) — switch branch")
+        .accessibilityLabel(accessibility)
+    }
+
+    private func switchBranch(to branch: String) {
+        Task {
+            if case .failure(let error) = await GitService.switchBranch(to: branch, at: path) {
+                switchError = error.message
+            }
+        }
     }
 }

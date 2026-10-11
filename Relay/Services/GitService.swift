@@ -7,6 +7,10 @@ nonisolated enum GitHead: Equatable, Sendable {
     case detached(String)
 }
 
+struct GitError: Error, Equatable, Sendable {
+    let message: String
+}
+
 /// Reads Git metadata straight from the repository's files rather than running `git`. On a Mac
 /// without the Command Line Tools, `/usr/bin/git` is a stub that pops an install dialog, and Git
 /// must never be required. HEAD is a one-line file, so reading it is also cheap enough to redo
@@ -58,6 +62,85 @@ nonisolated enum GitService {
         }
         guard line.count >= 7, line.allSatisfy(\.isHexDigit) else { return nil }
         return .detached(String(line.prefix(7)))
+    }
+
+    /// The branches HEAD most recently moved to, newest first, found in HEAD's reflog
+    /// ("checkout: moving from A to B"). The current branch and branches that no longer exist
+    /// are left out. Read from files like everything else here, so listing needs no Git.
+    static func recentBranches(at directory: String, limit: Int = 3) -> [String] {
+        guard let gitDirectory = gitDirectory(containing: directory),
+              let log = try? String(contentsOf: gitDirectory.appending(path: "logs/HEAD"), encoding: .utf8)
+        else { return [] }
+        let current: String? = if case .branch(let name)? = head(inGitDirectory: gitDirectory) { name } else { nil }
+        let commonDirectory = commonGitDirectory(of: gitDirectory)
+        let packed = (try? String(contentsOf: commonDirectory.appending(path: "packed-refs"), encoding: .utf8)) ?? ""
+        var found: [String] = []
+        for line in log.split(separator: "\n").reversed() {
+            guard let range = line.range(of: "\tcheckout: moving from ") else { continue }
+            let move = line[range.upperBound...]
+            guard let separator = move.range(of: " to ", options: .backwards) else { continue }
+            // Newest side first: the branch moved to, then the one left behind.
+            for name in [String(move[separator.upperBound...]), String(move[..<separator.lowerBound])]
+            where name != current && !found.contains(name)
+                && branchExists(name, in: commonDirectory, packedRefs: packed) {
+                found.append(name)
+            }
+            if found.count >= limit { break }
+        }
+        return Array(found.prefix(limit))
+    }
+
+    /// Worktrees keep HEAD in their own directory but share branches with the main one.
+    private static func commonGitDirectory(of gitDirectory: URL) -> URL {
+        guard let contents = try? String(contentsOf: gitDirectory.appending(path: "commondir"), encoding: .utf8) else {
+            return gitDirectory
+        }
+        let path = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+        let url = path.hasPrefix("/") ? URL(filePath: path) : gitDirectory.appending(path: path)
+        return url.standardizedFileURL
+    }
+
+    private static func branchExists(_ name: String, in gitDirectory: URL, packedRefs: String) -> Bool {
+        if FileManager.default.fileExists(atPath: gitDirectory.appending(path: "refs/heads/\(name)").path) { return true }
+        return packedRefs.split(separator: "\n").contains { $0.hasSuffix(" refs/heads/\(name)") }
+    }
+
+    /// Switches the repository containing `directory` to `branch` with `git switch`, which
+    /// refuses rather than lose uncommitted work. Returns Git's explanation on failure. Git is
+    /// only run for this explicit request, never to read state.
+    static func switchBranch(to branch: String, at directory: String) async -> Result<Void, GitError> {
+        guard let git = gitExecutable() else { return .failure(GitError(message: "Git isn’t installed.")) }
+        return await Task.detached {
+            let process = Process()
+            process.executableURL = git
+            process.arguments = ["-C", directory, "switch", branch]
+            let errors = Pipe()
+            process.standardError = errors
+            process.standardOutput = FileHandle.nullDevice
+            do { try process.run() } catch { return .failure(GitError(message: error.localizedDescription)) }
+            let output = errors.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus != 0 else { return .success(()) }
+            let message = String(decoding: output, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            return .failure(GitError(message: message.isEmpty ? "Git couldn’t switch to \(branch)." : message))
+        }.value
+    }
+
+    /// A real Git, or nil. Without the Command Line Tools `/usr/bin/git` is a stub that opens an
+    /// install dialog, so it is used only once `xcode-select` confirms a developer directory.
+    private static func gitExecutable() -> URL? {
+        for path in ["/opt/homebrew/bin/git", "/usr/local/bin/git"]
+        where FileManager.default.isExecutableFile(atPath: path) {
+            return URL(filePath: path)
+        }
+        let probe = Process()
+        probe.executableURL = URL(filePath: "/usr/bin/xcode-select")
+        probe.arguments = ["-p"]
+        probe.standardOutput = FileHandle.nullDevice
+        probe.standardError = FileHandle.nullDevice
+        guard (try? probe.run()) != nil else { return nil }
+        probe.waitUntilExit()
+        return probe.terminationStatus == 0 ? URL(filePath: "/usr/bin/git") : nil
     }
 
     private static func linkedGitDirectory(from file: URL, relativeTo directory: URL) -> URL? {
