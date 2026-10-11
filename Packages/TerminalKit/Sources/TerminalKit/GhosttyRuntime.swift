@@ -268,7 +268,7 @@ final class GhosttyRuntime {
                 window-padding-x = 8
                 window-padding-y = 8
                 clipboard-read = ask
-                clipboard-write = ask
+                clipboard-write = allow
                 \(command.map { "command = \(Self.commandValue(for: $0))\n" } ?? "")
                 """.write(to: file, atomically: true, encoding: .utf8)
             try "config-file = \(file.path)\n"
