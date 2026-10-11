@@ -262,6 +262,8 @@ final class GhosttyRuntime {
             try """
                 theme = light:\(light.path),dark:\(dark.path)
                 keybind = clear
+                keybind = alt+left=esc:b
+                keybind = alt+right=esc:f
                 \(settings.configurationLines.joined(separator: "\n"))
                 window-padding-x = 8
                 window-padding-y = 8

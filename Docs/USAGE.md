@@ -67,8 +67,10 @@ Before you type, the list starts with **Needs Attention** (sessions waiting on y
 | Jump to previous / next prompt | ⌘↑ / ⌘↓ |
 | Page Up / Page Down | ⌘⇞ / ⌘⇟ |
 | Scroll to top / bottom | ⌘↖ / ⌘↘ |
+| Move back / forward a word | ⌥← / ⌥→ |
 | Bigger / smaller / actual-size text | ⌘+ / ⌘- / ⌘0 |
 
+- **⌥← / ⌥→** move the cursor by word at the shell prompt, as in Terminal.
 - **Search Scrollback** lists the lines that match your search, and you can copy any of them. Matches aren't highlighted in the terminal itself yet.
 - **Drop files** onto a terminal to insert their paths, shell-escaped. You can also drop an image with no file behind it, such as a screenshot thumbnail or an image from a browser. Relay saves it and inserts the path to the saved file, so agents like Claude Code can pick it up.
 
